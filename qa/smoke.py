@@ -8,7 +8,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/index.html?tier=2"
+URL = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8765/index.html?qa=1"
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 # 开发布局是 <root>/{site,qa,tools}，交付布局是仓库根直接放站点文件。
@@ -79,12 +79,12 @@ def main() -> int:
         page.wait_for_timeout(4000)
         info = page.evaluate(
             "() => window.__site ? {"
-            "webgl: window.__site.webgl, tier: window.__site.tier ?? null,"
-            "morph: window.__site.morph ?? null, act: window.__site.act,"
-            "tone: window.__site.tone ?? null, booting: document.body.classList.contains('is-booting'),"
-            "acts: document.querySelectorAll('.act').length,"
-            "railItems: document.querySelectorAll('.rail__item').length,"
-            "magnets: document.querySelectorAll('.magnet').length"
+            "webgl: window.__site.webgl, reduced: window.__site.reduced,"
+            "morph: window.__site.morph, rendering: window.__site.rendering,"
+            "booting: document.body.classList.contains('is-booting'),"
+            "sections: document.querySelectorAll('main > section').length,"
+            "projects: document.querySelectorAll('.project').length,"
+            "navLinks: document.querySelectorAll('#primary-nav a').length"
             "} : null"
         )
         glyphs = page.evaluate(GLYPH_JS)
