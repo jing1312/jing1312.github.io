@@ -39,6 +39,7 @@
   --rule:  rgba(255, 255, 255, .85);
 
   /* --- 排版比例 --- */
+  --f-name:    clamp(4rem, 15vw, 12rem);     /* 英雄名（拉丁） */
   --f-display: clamp(3.2rem, 10.4vw, 12.5rem);
   --f-display-s: clamp(2.2rem, 6vw, 6.4rem);
   --f-latin:   clamp(1.6rem, 5.2vw, 6rem);

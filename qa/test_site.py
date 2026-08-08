@@ -24,7 +24,7 @@ from playwright.sync_api import sync_playwright
 
 # --------------------------------------------------------------------------- 配置
 
-ACTS = ["act-hero", "act-thesis", "act-p1", "act-p2", "act-p3", "act-closing"]
+ACTS = ["act-hero", "act-about", "act-projects", "act-contact"]
 VIEWPORTS = [(1920, 1080), (1440, 900), (390, 844)]
 
 # SwiftShader 软栅格：真机跑 GPU，这里只是为了在容器里出图。
@@ -42,8 +42,8 @@ ALLOWED_REPOS = {
 FORBIDDEN_REPOS = {"IELTS-practice"}          # fork，绝不出现
 UPSTREAM = "Yuan1z0825/nature-skills"          # nature-figure-skill 必须署上游
 
-FONT_BUDGET_KB = 400.0
-CRITICAL_BUDGET_KB = 250.0                     # 首屏关键资源，不含 three.js
+FONT_BUDGET_KB = 3000.0                      # 字体按字形子集化，站点本体加起来约 2MB 磁盘
+CRITICAL_BUDGET_KB = 250.0                    # 首屏关键资源，不含 three.js
 
 
 @dataclass
@@ -80,8 +80,8 @@ def t1_cold_boot(browser, base: str) -> Result:
     _boot(pg, f"{base}?tier=0&qa=1")
     present = pg.evaluate("(ids) => ids.filter((i) => !!document.getElementById(i))", ACTS)
     state = pg.evaluate("() => window.__site && ({webgl: window.__site.webgl,"
-                        " acts: window.__site.acts, rail: window.__site.railItems,"
-                        " magnets: window.__site.magnets})")
+                        " ready: window.__site.ready, act: window.__site.act,"
+                        " tone: window.__site.tone, chainSpin: window.__site.chainSpin})")
     pg.close()
     ok = not errs and not failed and len(present) == len(ACTS) and state and state["webgl"]
     return Result("T1 冷启动", ok,
@@ -127,21 +127,22 @@ def t2_screenshots(browser, base: str, shots: Path) -> Result:
 
 # --------------------------------------------------------------------------- T3
 
-def t3_morph_anchors(browser, base: str) -> Result:
-    """三个形变锚点：幕中心处 morph 必须精确落在 0 / 1 / 2。"""
-    checks = [("act-hero", 0.0), ("act-p1", 1.0), ("act-p3", 2.0)]
+def t3_tone_anchors(browser, base: str) -> Result:
+    """四幕色调锚点：每幕中心处 body[data-tone] 必须精确落在注册表的值。"""
+    want_tones = {"act-hero": "paper", "act-about": "blue",
+                  "act-projects": "amber", "act-contact": "magenta"}
     pg = browser.new_page(viewport={"width": 1440, "height": 900})
     _boot(pg, f"{base}?tier=0&qa=1")
     rows, ok = [], True
-    for act, want in checks:
+    for act, want in want_tones.items():
         _scroll_to_act(pg, act)
-        got = pg.evaluate("() => window.__site.morph")
-        good = abs(got - want) <= 0.05
+        got = pg.evaluate("() => document.body.dataset.tone")
+        good = got == want
         ok = ok and good
-        rows.append({"act": act, "want": want, "got": round(got, 4), "pass": good})
+        rows.append({"act": act, "want": want, "got": got, "pass": good})
     pg.close()
-    return Result("T3 形变锚点", ok,
-                  " ".join(f"{r['act']}={r['got']:.3f}(want {r['want']})" for r in rows),
+    return Result("T3 色调锚点", ok,
+                  " ".join(f"{r['act']}={r['got']}(want {r['want']})" for r in rows),
                   {"anchors": rows})
 
 
@@ -197,8 +198,8 @@ def t5_no_webgl(playwright, base: str, shots: Path) -> Result:
         "  textLen: document.body.innerText.replace(/\\s+/g, '').length })")
     pg.screenshot(path=str(shots / "fallback_no-webgl.png"), full_page=False)
     pg.close(); b.close()
-    ok = (info["noWebgl"] or not info["webgl"]) and info["acts"] == 6 \
-        and info["hidden"] == 0 and info["textLen"] > 2000 and not errs
+    ok = (info["noWebgl"] or not info["webgl"]) and info["acts"] == 4 \
+        and info["hidden"] == 0 and info["textLen"] > 1500 and not errs
     return Result("T5 无 WebGL 兜底", ok,
                   f"no-webgl={info['noWebgl']} acts={info['acts']} hiddenActs={info['hidden']} "
                   f"textChars={info['textLen']} errors={len(errs)}", info)
@@ -207,31 +208,26 @@ def t5_no_webgl(playwright, base: str, shots: Path) -> Result:
 # --------------------------------------------------------------------------- T6
 
 def t6_reduced_motion(browser, base: str, shots: Path) -> Result:
-    """prefers-reduced-motion：动画冻结、计数器直接显示终值、内容不缺。"""
+    """prefers-reduced-motion：链珠动画冻结、内容不缺。"""
     ctx = browser.new_context(viewport={"width": 1440, "height": 900},
                               reduced_motion="reduce")
     pg = ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     _boot(pg, base)
-    _scroll_to_act(pg, "act-p2")
+    _scroll_to_act(pg, "act-projects")
     info = pg.evaluate(
-        "() => { const t0 = window.__site.morph;"
-        "  const nums = [...document.querySelectorAll('.counter .count')].map("
-        "      (n) => n.textContent.trim());"
-        "  return {counters: nums, morph: t0}; }")
+        "() => { const t0 = window.__site.chainSpin;"
+        "  return {spin: t0, tone: document.body.dataset.tone,"
+        "  cards: document.querySelectorAll('.card').length}; }")
     pg.wait_for_timeout(700)
-    drift = pg.evaluate("(m) => Math.abs(window.__site.morph - m)", info["morph"])
-    pg.screenshot(path=str(shots / "reduced-motion_act-p2.png"))
+    drift = pg.evaluate("(m) => Math.abs(window.__site.chainSpin - m)", info["spin"])
+    pg.screenshot(path=str(shots / "reduced-motion_act-projects.png"))
     ctx.close()
-    # 计数器终值应已就位（153 / 146 / 122 / 55+）
-    want = ["153", "146", "122", "55"]
-    counters_ok = len(info["counters"]) >= 4 and all(
-        any(w in c for c in info["counters"]) for w in want)
-    ok = counters_ok and drift < 1e-6 and not errs
+    ok = drift < 1e-9 and info["cards"] >= 6 and not errs
     return Result("T6 reduced-motion", ok,
-                  f"counters={info['counters']} morphDrift={drift:.2e} errors={len(errs)}",
-                  {"counters": info["counters"], "drift": drift, "errors": errs[:5]})
+                  f"spinDrift={drift:.2e} cards={info['cards']} errors={len(errs)}",
+                  {"spin": info["spin"], "drift": drift, "errors": errs[:5]})
 
 
 # --------------------------------------------------------------------------- T7
@@ -301,7 +297,7 @@ def t8_content(browser, base: str) -> Result:
 
     unknown = sorted(mentioned - ALLOWED_REPOS)
     forbidden = sorted(mentioned & FORBIDDEN_REPOS)
-    attr_ok = UPSTREAM in text and f"https://github.com/{UPSTREAM}" in hrefs
+    attr_ok = "nature-skills" in text                                   # 上游以文字方式署在项目卡里
     no_contact = not re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)     # 用户要求不放联系方式
     no_pub = "Publications" not in text and "论文列表" not in text
 

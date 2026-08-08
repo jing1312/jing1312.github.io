@@ -1,56 +1,10 @@
 /* ==========================================================================
-   type.css — 自托管字体与排版类
+   type.css — 排版类
    字体三件套：拉丁 Didone（Bodoni Moda 900）× 中文黑体（Noto Sans SC 900）
    × IBM Plex（正文/等宽）。大标题深海军蓝压浅天幕，是「梦幻清新」里
    唯一的重色重语气——颜色轻，字不能飘。
-   全部 OFL 授权，fonttools 按实际用到的字形子集化。
+   @font-face 全部在 css/fonts.css（按用到的字形自动生成）。
    ========================================================================== */
-
-@font-face {
-  font-family: "Bodoni Display";
-  src: url("../fonts/bodonimoda-900.woff2") format("woff2");
-  font-weight: 900; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Bodoni Display";
-  src: url("../fonts/bodonimoda-900-italic.woff2") format("woff2");
-  font-weight: 900; font-style: italic; font-display: swap;
-}
-@font-face {
-  font-family: "SC Display";
-  src: url("../fonts/notosanssc-900.woff2") format("woff2");
-  font-weight: 900; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex";
-  src: url("../fonts/plexsans-400.woff2") format("woff2");
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex";
-  src: url("../fonts/plexsans-600.woff2") format("woff2");
-  font-weight: 600; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex SC";
-  src: url("../fonts/plexsanssc-400.woff2") format("woff2");
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex SC";
-  src: url("../fonts/plexsanssc-600.woff2") format("woff2");
-  font-weight: 600; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex Mono";
-  src: url("../fonts/plexmono-400.woff2") format("woff2");
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: "Plex Mono";
-  src: url("../fonts/plexmono-600.woff2") format("woff2");
-  font-weight: 600; font-style: normal; font-display: swap;
-}
 
 :root {
   --ff-display-zh: "SC Display", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -65,15 +19,24 @@
 .d-zh {
   font-family: var(--ff-display-zh);
   font-weight: 900;
-  font-size: var(--f-display);
+  font-size: var(--f-display-s);
   line-height: 1.02;
   letter-spacing: -.045em;
   color: var(--fg);
   margin: 0;
   text-align: left;
-  white-space: nowrap;
 }
 .d-zh--s { font-size: var(--f-display-s); line-height: .97; }
+
+/* --- 英雄名：一条拉丁 Didone，清新里唯一的重语气 --- */
+.hero__name {
+  font-family: var(--ff-display-la);
+  font-weight: 900;
+  font-size: var(--f-name);
+  letter-spacing: -.02em;
+  color: var(--fg);
+  white-space: nowrap;
+}
 
 /* --- 拉丁 Didone 展示 --- */
 .d-la {

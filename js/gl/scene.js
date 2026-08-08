@@ -1,17 +1,13 @@
 /* ==========================================================================
-   scene.js — 渲染编排 · 梦幻夏日版
-   六个 pass：
+   scene.js — 渲染编排 · 夏日天空 + 玻璃链
+   三个 pass：
      1a 背景 ortho quad   天空渐变 + 太阳 + 柔云 + 光带 → fboA
-     1b 三态结构体        透视相机，透明底                    → fboCore
-     2  transition        柔光拖影（轻色差）    fboA → fboB
-     3  blit              fboB → 屏幕
-     4  玻璃背面深度      归一化视距写进 R 通道               → fboDepth
-     5  玻璃正面          强折射取样 fboB + 弱折射取样 fboCore → 屏幕
+     1b 转场              柔光拖影（轻色差）  fboA → fboB
+     2  主体（玻璃链）    直接画到屏幕，珠面折射取样 fboA/fboB
 
-   结构体不直接上屏：它整个在玻璃壳内部，只应该透过玻璃被看见。
-
-   背景必须给玻璃提供「可折射的内容」——天空渐变、太阳、柔云、彩色光带，
-   玻璃在每一块色块/云边上勾出彩色细边，这就是梦幻夏日里的真实折射。
+   链珠的材质需要「可折射的内容」——天空渐变、太阳、柔云、彩色光带，
+   每一颗珠在云边、太阳、色带上勾出柔和的彩色细边，这就是梦幻夏日
+   里唯一的 3D 主角：不套模型，不贴图。
    ========================================================================== */
 
 import * as THREE from "three";
@@ -26,7 +22,7 @@ const FULLSCREEN_VS = /* glsl */ `
 `;
 
 /* --------------------------------------------------------------------------
-   背景材质：夏日天空
+   背景材质：夏日天空（与旧版完全一致，配色仍随 TONE 表切换）
    -------------------------------------------------------------------------- */
 function makeBackground() {
   const uniforms = {
@@ -154,13 +150,10 @@ export function createScene(canvas) {
   bgQuad.frustumCulled = false;
   bgScene.add(bgQuad);
 
-  /* ---- 结构体（透视） ---- */
+  /* ---- 主体（珠链，透视相机） ---- */
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0, 4.6);
-
-  /* ---- 玻璃 ---- */
-  const glassScene = new THREE.Scene();
 
   /* ---- 转场 ---- */
   const transition = createTransition();
@@ -196,11 +189,6 @@ export function createScene(canvas) {
   };
   const fboA = new THREE.WebGLRenderTarget(2, 2, rtOpts);
   const fboB = new THREE.WebGLRenderTarget(2, 2, { ...rtOpts, depthBuffer: false });
-  const fboDepth = new THREE.WebGLRenderTarget(2, 2, { ...rtOpts, depthBuffer: true });
-  // 结构体单独一张带 alpha 的图：它在玻璃**内部**，只经过前表面一次折射，
-  // 位移量比「远在玻璃背后的背景」小一个量级。合到同一张背景图里会被当成
-  // 远景一起强折射，结果是被缩成一小团甩到边上——那不是物理，是 bug。
-  const fboCore = new THREE.WebGLRenderTarget(2, 2, { ...rtOpts, depthBuffer: true });
 
   const state = {
     fboScale: 1,
@@ -208,12 +196,10 @@ export function createScene(canvas) {
     width: 2,
     height: 2,
     useTransition: true,
-    structure: null,
-    glass: null,
+    hero: null,
   };
 
-  function setStructure(mesh) { state.structure = mesh; scene.add(mesh); }
-  function setGlass(glass) { state.glass = glass; glassScene.add(glass.mesh); }
+  function setHero(hero) { state.hero = hero; scene.add(hero.mesh); }
 
   function resize() {
     const w = Math.max(canvas.clientWidth || window.innerWidth, 1);
@@ -228,18 +214,14 @@ export function createScene(canvas) {
     const ph = Math.max(Math.round(h * dpr * state.fboScale), 2);
     fboA.setSize(pw, ph);
     fboB.setSize(pw, ph);
-    fboDepth.setSize(pw, ph);
-    fboCore.setSize(pw, ph);
 
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
 
     bg.uniforms.uRes.value.set(pw, ph);
     transition.uniforms.uRes.value.set(pw, ph);
-    // 玻璃正面画在**默认帧缓冲**上，所以归一化除数必须是屏幕绘制缓冲尺寸，
-    // 不是 FBO 尺寸。写成 (pw, ph) 时 fboScale<1 会让 uv 整体放大 1/fboScale，
-    // 半屏以外全部 clamp 到贴图边缘——就是那层奶白拉丝的真正来源。
-    if (state.glass) state.glass.uniforms.uResolution.value.set(w * dpr, h * dpr);
+    // 珠链的折射需要屏幕分辨率的精确比值
+    if (state.hero) state.hero.uniforms.uResolution.value.set(w * dpr, h * dpr);
   }
 
   function setFboScale(s) {
@@ -248,50 +230,28 @@ export function createScene(canvas) {
     resize();
   }
 
-  /** 每帧更新玻璃的深度归一化范围（uD0 / uDR）。 */
-  function updateGlassRange() {
-    const g = state.glass;
-    if (!g) return;
-    const p = new THREE.Vector3().setFromMatrixPosition(g.mesh.matrixWorld);
-    p.applyMatrix4(camera.matrixWorldInverse);
-    const dist = Math.max(-p.z, 0.1);
-    const r = Math.max(g.mesh.scale.x, 1e-3) * 1.5;
-    g.shared.uD0.value = dist - r;
-    g.shared.uDR.value = 2 * r;
-  }
-
   /** 主体在屏幕上的位置 → 接触阴影落点。 */
   function updateShadow() {
-    const g = state.glass;
-    if (!g) return;
-    const p = new THREE.Vector3().setFromMatrixPosition(g.mesh.matrixWorld);
+    const hero = state.hero;
+    if (!hero) return;
+    const p = new THREE.Vector3().setFromMatrixPosition(hero.mesh.matrixWorld);
     p.project(camera);
     const uvx = p.x * 0.5 + 0.5;
     const uvy = p.y * 0.5 + 0.5;
-    const s = g.mesh.scale.x;
+    const s = hero.mesh.scale.x * 1.25;
     bg.uniforms.uShadow.value.set(uvx, uvy - 0.30 * s, 0.30 * s + 0.10);
   }
 
   function render() {
     camera.updateMatrixWorld();
-    updateGlassRange();
     updateShadow();
 
-    // Pass 1a —— 背景 → fboA
+    // Pass 1 —— 背景 → fboA
     renderer.setRenderTarget(fboA);
     renderer.clear(true, true, false);
     renderer.render(bgScene, fsCam);
 
-    // Pass 1b —— 三态结构体 → fboCore（透明底）
-    if (state.structure) {
-      renderer.setClearColor(0x000000, 0);
-      renderer.setRenderTarget(fboCore);
-      renderer.clear(true, true, false);
-      renderer.render(scene, camera);
-      renderer.setClearColor(0x000000, 1);
-    }
-
-    // Pass 2 —— 转场后处理 → fboB
+    // Pass 1b —— 转场后处理 → fboB
     let src = fboA;
     if (state.useTransition && transition.uniforms.uAmt.value > 0.0015) {
       transition.uniforms.uTex.value = fboA.texture;
@@ -301,39 +261,29 @@ export function createScene(canvas) {
       src = fboB;
     }
 
-    // Pass 3 —— 铺到屏幕
+    // Pass 2 —— 背景铺到屏幕
     renderer.setRenderTarget(null);
     renderer.clear(true, true, false);
     blitMat.uniforms.uTex.value = src.texture;
     renderer.render(blitScene, fsCam);
 
-    // Pass 4/5 —— 玻璃
-    const g = state.glass;
-    if (g) {
-      const front = g.mesh.material;
-      g.mesh.material = g.depthMaterial;
-      renderer.setRenderTarget(fboDepth);
-      renderer.clear(true, true, false);
-      renderer.render(glassScene, camera);
-
-      g.mesh.material = front;
-      g.uniforms.uBgTex.value = src.texture;
-      g.uniforms.uDepthTex.value = fboDepth.texture;
-      g.uniforms.uCoreTex.value = state.structure ? fboCore.texture : null;
-      renderer.setRenderTarget(null);
-      renderer.render(glassScene, camera);
+    // Pass 3 —— 玻璃链：珠子折射出 fbo 内容
+    const hero = state.hero;
+    if (hero) {
+      hero.uniforms.uTex.value = src.texture;
+      renderer.render(scene, camera);
     }
   }
 
   function dispose() {
-    fboA.dispose(); fboB.dispose(); fboDepth.dispose(); fboCore.dispose();
+    fboA.dispose(); fboB.dispose();
     renderer.dispose();
   }
 
   return {
-    renderer, camera, scene, glassScene,
+    renderer, camera, scene,
     bg, transition, state,
-    setStructure, setGlass,
+    setHero,
     resize, setFboScale, render, dispose,
   };
 }

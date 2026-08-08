@@ -4,32 +4,28 @@
      content.js 管文案；render.js 管 DOM；gl/* 管画面；这里只管「什么时候变成什么」。
 
    滚动是原生的（没有惯性劫持——用户明确没勾这项）。所有 3D 状态都是滚动位置的
-   纯函数：同一个滚动位置永远得到同一帧，这也是 QA 能对 uMorph 做断言的前提。
+   纯函数：同一个滚动位置永远得到同一帧。
    ========================================================================== */
 
 import * as THREE from "three";
 import * as C from "./content.js";
 import { renderAll } from "./ui/render.js";
-import { buildStructure } from "./gl/morph.js";
-import { buildGlass } from "./gl/glass.js";
+import { buildChain } from "./gl/chain.js";
 import { createScene } from "./gl/scene.js";
 import { createQuality, initialTier } from "./gl/quality.js";
 import { createCursor } from "./ui/cursor.js";
-import { createDrag } from "./ui/drag.js";
 import { clamp, damp, smootherstep, easeOutExpo, onceVisible, prefersReducedMotion, qaMode } from "./util/anim.js";
 
 /* --------------------------------------------------------------------------
-   每一幕的取景与天空
-   第 1 幕主体正居中央（Hero 的主角）；之后在左右两侧来回换位，
-   给磨砂面板让出舞台，同时保持「玻璃一直在视野里」的连续性。
+   每一幕的取景
+   玻璃链在 Hero 正中央；之后在左右两侧来回换位，给版面让出舞台。
+   串珠链整体高约 2.4（链长约 2.44），scale = 1 时几乎撑满视口高度。
    -------------------------------------------------------------------------- */
 const VIEW = [
-  { pos: [ 0.00, -0.02,  0.10], scale: 0.95 },
-  { pos: [ 1.40,  0.30, -0.30], scale: 0.62 },
-  { pos: [-1.45,  0.12, -0.25], scale: 0.62 },
-  { pos: [ 1.50, -0.28, -0.40], scale: 0.58 },
-  { pos: [-1.05, -0.05,  0.05], scale: 0.85 },
-  { pos: [ 1.50,  0.35, -0.55], scale: 0.55 },
+  { pos: [ 0.00, -0.02,  0.10], scale: 1.00 },
+  { pos: [-1.50,  0.10, -0.10], scale: 0.62 },
+  { pos: [ 1.55,  0.10, -0.30], scale: 0.58 },
+  { pos: [ 0.00, -0.20,  0.20], scale: 0.85 },
 ];
 
 /* tone → 天空 / 玻璃环境光 / 边缘色
@@ -50,11 +46,6 @@ const TONE = {
              sun: "#FFE9F4", sunPos: [0.78, 0.18], tintA: "#E3D8FF", tintB: "#FFD9EC", tintAmt: 0.70, cloudAmt: 0.40,
              rim: "#D8C8F7", envTop: "#FFFCFF", envBottom: "#B79FE6" },
 };
-/* 玻璃内结构体的固定配色：草莓粉 → 晴空蓝 */
-const INK_IN = new THREE.Color("#F96FA0");
-const INK_OUT = new THREE.Color("#4E9FF1");
-/* 玻璃刻面棱线：极淡雾蓝 */
-const EDGE_IN = new THREE.Color("#52698C");
 
 const reduced = prefersReducedMotion();
 const QA = qaMode();
@@ -126,7 +117,7 @@ function fallback(reason) {
   document.body.classList.add("no-webgl");
   document.body.classList.remove("is-booting");
   const poster = document.getElementById("poster");
-  if (poster) { poster.hidden = false; poster.removeAttribute("aria-hidden"); poster.setAttribute("aria-hidden", "true"); }
+  if (poster) poster.hidden = false;
   if (!document.querySelector(".fallback-note")) {
     const n = document.createElement("p");
     n.className = "fallback-note";
@@ -134,7 +125,6 @@ function fallback(reason) {
     document.body.append(n);
   }
   // 钩子先挂上再跑首帧：兜底路径里任何一行出错，页面也不能停在「未就绪」。
-  // 无 WebGL 的用户拿到的是纯 DOM 页面，它必须无条件可读。
   window.__site = { ready: true, webgl: false, reason, get act() { return blend(1).i; } };
   // 兜底下仍然要切 tone，否则色场永远停在第一幕
   const tick = () => {
@@ -147,37 +137,23 @@ function fallback(reason) {
   window.addEventListener("scroll", tick, { passive: true });
 }
 
-// 分发写在文件末尾（见「5. 分发」）：fallback 会用到模块尾部用 let 声明的
-// toneNow / railNow，在这里同步调用会撞上 TDZ。
-
 /* ==========================================================================
    3. 启动
    ========================================================================== */
 async function boot() {
-  const molecule = await fetch("data/molecule.json", { cache: "force-cache" }).then((r) => {
-    if (!r.ok) throw new Error("molecule.json " + r.status);
-    return r.json();
-  });
-
-  const structure = buildStructure(molecule);
   // ?tier=0|1|2 锁档：QA 在软件渲染下用得到，真实用户不会带这个参数
   const forced = Number(new URLSearchParams(location.search).get("tier"));
   const tier0 = Number.isInteger(forced) && forced >= 0 && forced <= 2 ? forced : initialTier();
 
-  const glass = buildGlass({ detail: 5, samples: 9 });
-  glass.setNodes(structure.graphNodes, structure.molNodes);
-
+  const chain = buildChain();
   const scene = createScene(canvas);
-  scene.setStructure(structure.mesh);
-  scene.setGlass(glass);
+  scene.setHero(chain);
 
   const quality = createQuality({
     startTier: tier0,
     onChange: (spec) => applyTier(spec),
   });
   function applyTier(spec) {
-    glass.setSamples(spec.samples);
-    glass.setDetail(spec.detail);
     scene.setFboScale(spec.fbo);
     scene.state.useTransition = spec.transition && !reduced;
     shadowTarget = spec.shadow;
@@ -191,38 +167,12 @@ async function boot() {
 
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); cancelAnimationFrame(raf); fallback("context-lost"); });
 
-  /* --- 拖拽：只在第 5 幕、且指针真的落在主体上时接管 --- */
-  const camRight = new THREE.Vector3();
-  const centerW = new THREE.Vector3();
-  const proj = new THREE.Vector3();
-  function screenCircle() {
-    centerW.setFromMatrixPosition(glass.mesh.matrixWorld);
-    proj.copy(centerW).project(scene.camera);
-    const x = (proj.x * 0.5 + 0.5) * window.innerWidth;
-    const y = (1 - (proj.y * 0.5 + 0.5)) * window.innerHeight;
-    camRight.setFromMatrixColumn(scene.camera.matrixWorld, 0);
-    const edge = centerW.clone().addScaledVector(camRight, glass.mesh.scale.x * 1.35).project(scene.camera);
-    const r = Math.abs(edge.x - proj.x) * 0.5 * window.innerWidth;
-    return { x, y, r: Math.max(r, 40) };
-  }
-
-  let actIndex = 0;
-  const drag = createDrag({
-    getEnabled: () => !reduced && actIndex === 4,
-    getCircle: screenCircle,
-    onState: ({ dragging, hovering }) => {
-      cursor.setDrag(dragging || hovering);
-      cursor.setLabel(dragging ? "松手" : hovering ? C.molecule.dragHint : null);
-    },
-  });
-
   /* --- 主循环 --- */
   const skyTopC = new THREE.Color(), skyBotC = new THREE.Color();
   const tintAC = new THREE.Color(), tintBC = new THREE.Color();
   const sunC = new THREE.Color();
-  const rimC = new THREE.Color(), envC = new THREE.Color(), envT = new THREE.Color();
-  const tmpC = new THREE.Color();
   const sunPos = new THREE.Vector2();
+  const tmpC = new THREE.Color();
   const pos = new THREE.Vector3();
   let curPos = new THREE.Vector3(VIEW[0].pos[0], VIEW[0].pos[1], VIEW[0].pos[2]);
   let curScale = VIEW[0].scale;
@@ -245,7 +195,6 @@ async function boot() {
     const vh = window.innerHeight;
     const bView = blend(vh * 0.40);
     const bTone = blend(vh * 0.16);
-    actIndex = bView.i;
 
     // 取景（reduced-motion 下不做相机漂移，直接落位）
     const A = VIEW[bView.i], B = VIEW[bView.j];
@@ -269,10 +218,7 @@ async function boot() {
       curScale = damp(curScale, scl * fit, 0.10, dt);
     }
 
-    // 形变：0 流体 → 1 有向图 → 2 分子
-    const morph = C.acts[bView.i].morph + (C.acts[bView.j].morph - C.acts[bView.i].morph) * bView.w;
-
-    // 天空 / 玻璃环境光 / 边缘色
+    // 天空
     const TA = TONE[C.acts[bTone.i].tone], TB = TONE[C.acts[bTone.j].tone];
     const tw = bTone.w;
     skyTopC.set(TA.skyTop).lerp(tmpC.set(TB.skyTop), tw);
@@ -280,9 +226,6 @@ async function boot() {
     sunC.set(TA.sun).lerp(tmpC.set(TB.sun), tw);
     tintAC.set(TA.tintA).lerp(tmpC.set(TB.tintA), tw);
     tintBC.set(TA.tintB).lerp(tmpC.set(TB.tintB), tw);
-    rimC.set(TA.rim).lerp(tmpC.set(TB.rim), tw);
-    envC.set(TA.envBottom).lerp(tmpC.set(TB.envBottom), tw);
-    envT.set(TA.envTop).lerp(tmpC.set(TB.envTop), tw);
     sunPos.set(
       TA.sunPos[0] + (TB.sunPos[0] - TA.sunPos[0]) * tw,
       TA.sunPos[1] + (TB.sunPos[1] - TA.sunPos[1]) * tw,
@@ -296,27 +239,8 @@ async function boot() {
     const wTarget = QA || reduced ? 0 : clamp(Math.abs(scrollVel) / 2400, 0, 1);
     warp = damp(warp, wTarget, wTarget > warp ? 0.05 : 0.14, dt);
 
-    /* --- 写 uniform --- */
+    /* --- 写统一 uniform --- */
     const time = QA || reduced ? 8.0 : t;
-
-    structure.uniforms.uMorph.value = morph;
-    structure.uniforms.uTime.value = time;
-    structure.uniforms.uInkA.value.copy(INK_IN);
-    structure.uniforms.uInkB.value.copy(INK_OUT);
-    structure.uniforms.uTurb.value = reduced ? 0 : 1;
-    // 流体态是 2400 条流线，线密度天然比骨架高得多；恒定不透明度会让
-    // Hero 糊成一团。按 morph 提升：流体 0.55 → 骨架/分子 0.95。
-    structure.uniforms.uOpacity.value = 0.75 + 0.20 * clamp(morph, 0, 1);
-
-    glass.shared.uMorph.value = morph;
-    glass.shared.uTime.value = time;
-    glass.shared.uTurb.value = reduced ? 0 : 1;
-    glass.uniforms.uRim.value.copy(rimC);
-    glass.uniforms.uEnvBottom.value.copy(envC);
-    glass.uniforms.uEnvTop.value.copy(envT);
-    glass.uniforms.uEdge.value.copy(EDGE_IN);   // 刻面棱线：极淡雾蓝，与天空同族
-    glass.uniforms.uPointer.value.set(cursor.uv.x, cursor.uv.y);
-    glass.uniforms.uLens.value = cursor.enabled ? 0.16 : 0;
 
     const bg = scene.bg.uniforms;
     bg.uSkyTopA.value.copy(skyTopC);
@@ -337,21 +261,18 @@ async function boot() {
     scene.transition.uniforms.uDir.value = scrollVel >= 0 ? 1 : -1;
     scene.transition.uniforms.uSeed.value = QA ? 3 : Math.floor(sy / 240);
 
-    /* --- 主体位姿：玻璃与结构体共用同一套 TRS --- */
-    drag.update(dt);
-    for (const m of [glass.mesh, structure.mesh]) {
-      m.position.copy(curPos);
-      m.scale.setScalar(curScale);
-      m.quaternion.copy(drag.quaternion);
-    }
+    chain.uniforms.uSkyBottom.value.copy(skyBotC);
+    chain.uniforms.uTime.value = time;
+
+    /* --- 主体位姿 --- */
+    chain.update(dt, time, QA || reduced);
+    chain.mesh.position.copy(curPos);
+    chain.mesh.scale.setScalar(curScale);
 
     /* --- DOM 同步 --- */
     setTone(C.acts[bTone.w > 0.5 ? bTone.j : bTone.i].tone);
-    setRail(actIndex);
-    if (cursor.enabled) {
-      if (!drag.dragging && !drag.hovering) cursor.setLabel(null);
-      cursor.update(dt);
-    }
+    setRail(bView.i);
+    if (cursor.enabled) cursor.update(dt);
 
     scene.render();
 
@@ -377,15 +298,13 @@ async function boot() {
     webgl: true,
     qa: QA,
     reduced,
-    get morph() { return structure.uniforms.uMorph.value; },
-    get act() { return actIndex; },
+    get act() { return bView().i; },
     get tone() { return document.body.dataset.tone; },
     get tier() { return quality.tier; },
     get tierName() { return quality.spec.name; },
-    get samples() { return glass.material.defines.SAMPLES; },
+    get chainSpin() { return chain.mesh.rotation.y; },
     get fboScale() { return scene.state.fboScale; },
     quality,
-    /** 注入伪造帧时长，验证降档逻辑（T4）。 */
     feedFps(fps, seconds) {
       const dt = 1 / fps;
       const n = Math.ceil(seconds / dt);
@@ -393,7 +312,18 @@ async function boot() {
       return quality.debug();
     },
     forceTier(n) { quality.freeze(n); return quality.debug(); },
+    pick(cx, cy) {
+      const c = scene.renderer.domElement;
+      const gl = c.getContext("webgl2") || c.getContext("webgl");
+      scene.render();
+      const px = Math.round(cx / 100 * c.width);
+      const py = c.height - 1 - Math.round(cy / 100 * c.height);
+      const buf = new Uint8Array(4);
+      gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      return Array.from(buf);
+    },
   };
+  function bView() { return blend(window.innerHeight * 0.40); }
 }
 
 /* ==========================================================================
@@ -425,7 +355,7 @@ function wireRail() {
   });
 }
 
-/** 数字滚动计数：只跑一次，尊重 reduced-motion。 */
+/** 数字滚动计数：只跑一次，尊重 reduced-motion（v1 已无计数器，保留实现备用） */
 function wireCounters() {
   document.querySelectorAll(".count[data-counting]").forEach((el) => {
     const target = Number(el.dataset.target || 0);
@@ -446,10 +376,7 @@ function wireCounters() {
 }
 
 /* ==========================================================================
-   5. 分发 —— 必须放在模块最后
-   函数声明会提升，但 setTone/setRail 依赖的 toneNow / railNow 是 let，
-   在模块求值中途调用 fallback() 会抛 TDZ ReferenceError，页面就再也 ready 不了。
-   放到末尾，所有模块级绑定都已初始化。
+   5. 分发 —— 必须放在模块最后（let 绑定初始化后才能调用）
    ========================================================================== */
 if (!hasWebGL2()) {
   fallback("no-webgl2");
