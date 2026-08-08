@@ -1,0 +1,151 @@
+/* ==========================================================================
+   ui.css — 光标、章节轨、兜底、可访问性
+   ========================================================================== */
+
+/* --- 跳转链接（键盘可达） --- */
+.skip-link {
+  position: fixed; top: -100%; left: var(--gutter); z-index: 100;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--ff-mono); font-size: .8rem; letter-spacing: .1em;
+  padding: .6rem 1rem; text-decoration: none;
+}
+.skip-link:focus { top: .6rem; }
+
+/* --- 焦点态：始终可见 --- */
+:focus-visible {
+  outline: 3px solid var(--spec-a);
+  outline-offset: 3px;
+}
+body[data-tone="blue"] :focus-visible { outline-color: var(--spec-c); }
+body[data-tone="magenta"] :focus-visible { outline-color: var(--ink); }
+
+/* --- 首屏引导态 --- */
+body.is-booting #main { opacity: 0; }
+#main { opacity: 1; transition: opacity .6s var(--e-out); }
+
+/* --- 自定义光标 + 磁吸 --- */
+.cursor {
+  position: fixed; top: 0; left: 0; z-index: 90;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity .3s var(--e-out);
+}
+body.has-cursor .cursor { opacity: 1; }
+.cursor__dot {
+  position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  background: #fff; border-radius: 50%;
+}
+.cursor__ring {
+  position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border: 1px solid #fff; border-radius: 50%;
+  transition: width .3s var(--e-out), height .3s var(--e-out), margin .3s var(--e-out), border-width .3s var(--e-out);
+}
+.cursor.is-magnet .cursor__ring { width: 68px; height: 68px; margin: -34px 0 0 -34px; border-width: 2px; }
+.cursor.is-drag .cursor__ring { width: 88px; height: 88px; margin: -44px 0 0 -44px; border-style: dashed; }
+.cursor__label {
+  position: absolute; left: 22px; top: 12px; white-space: nowrap;
+  font-family: var(--ff-mono); font-size: .625rem; letter-spacing: .18em;
+  text-transform: uppercase; color: #fff; opacity: 0;
+  transition: opacity .2s var(--e-out);
+}
+.cursor.is-labelled .cursor__label { opacity: 1; }
+/* 有自定义光标时隐藏系统光标；键盘用户不受影响 */
+body.has-cursor, body.has-cursor a, body.has-cursor button, body.has-cursor .magnet { cursor: none; }
+
+/* --- 章节轨 --- */
+.rail {
+  position: fixed; z-index: 40;
+  right: var(--gutter); top: 50%; transform: translateY(-50%);
+  display: grid; row-gap: .55rem; justify-items: end;
+  opacity: 0; transition: opacity .5s var(--e-out);
+}
+body:not(.is-booting) .rail { opacity: 1; }
+.rail__item {
+  display: flex; align-items: center; gap: .5rem;
+  background: none; border: 0; padding: 0; margin: 0;
+  font-family: var(--ff-mono); font-size: .625rem; letter-spacing: .14em;
+  color: var(--fg-38); cursor: pointer;
+  transition: color var(--t-fast) var(--e-out);
+}
+.rail__item .tick { display: block; width: 18px; height: 2px; background: currentColor;
+  transition: width var(--t-fast) var(--e-out); }
+.rail__item .lbl { opacity: 0; transition: opacity var(--t-fast) var(--e-out); }
+.rail__item:hover, .rail__item:focus-visible { color: var(--fg); }
+.rail__item:hover .lbl, .rail__item:focus-visible .lbl { opacity: 1; }
+.rail__item.is-active { color: var(--fg); }
+.rail__item.is-active .tick { width: 34px; }
+.rail__item.is-active .lbl { opacity: 1; }
+@media (max-width: 1000px) { .rail { display: none; } }
+
+/* --- 磁吸目标 --- */
+.magnet { display: inline-block; will-change: transform; }
+
+/* --- 无 WebGL 兜底 --- */
+.poster {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--field);
+  transition: background var(--t-slow) var(--e-in-out);
+}
+body.no-webgl .poster { display: block; }
+body.no-webgl #gl { display: none; }
+/* 兜底时用 CSS 画硬线网格，保留视觉结构 */
+body.no-webgl .poster::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(to right, var(--fg-14) 0 1px, transparent 1px calc(100% / 12));
+  background-size: 100% 100%;
+  opacity: .9;
+}
+/* 兜底态的主体：跟 WebGL 里同一个几何——正二十面体刻面线框。
+   前向棱线重、背向棱线轻，靠遮挡关系读出体积，不用发光渐变堆玻璃感。 */
+.poster__gem {
+  position: absolute; right: 5vw; top: 50%; width: min(52vh, 42vw); height: auto;
+  transform: translateY(-50%);
+  color: var(--fg);
+  transition: color var(--t-slow) var(--e-in-out);
+}
+@media (max-width: 1000px) {
+  .poster__gem { right: 50%; transform: translate(50%, -50%); width: min(60vw, 40vh); opacity: .8; }
+}
+.fallback-note {
+  position: fixed; left: var(--gutter); bottom: .8rem; z-index: 50;
+  font-family: var(--ff-mono); font-size: .625rem; letter-spacing: .12em;
+  color: var(--fg-60);   /* 38% 在纸色底上只有 2.4:1，读不出来 */
+}
+
+/* --- noscript --- */
+.noscript { padding: 8vh var(--gutter); max-width: 70ch; }
+.noscript h1 { font-family: var(--ff-display-zh); font-weight: 900;
+  font-size: clamp(1.8rem, 5vw, 3.4rem); line-height: 1.06; letter-spacing: -.03em; }
+.noscript p { font-size: 1rem; line-height: 1.7; }
+.noscript ul { padding-left: 1.1rem; line-height: 2; font-family: var(--ff-mono); font-size: .875rem; }
+
+/* --- 数字计数器：未触发时占位不跳动 --- */
+.count[data-counting] { font-variant-numeric: tabular-nums; }
+
+/* --- 拖拽提示 --- */
+body.is-dragging { user-select: none; }
+
+/* ==========================================================================
+   prefers-reduced-motion — 系统级用户设置，与性能降质无关，独立生效
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  * , *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .cursor { display: none; }
+  body.has-cursor, body.has-cursor a, body.has-cursor button { cursor: auto; }
+  #main { opacity: 1 !important; }
+}
+
+/* 打印：直接给出可读文档 */
+@media print {
+  #gl, .poster, .cursor, .rail { display: none !important; }
+  body { background: #fff; color: #000; }
+  .act { min-height: 0; page-break-inside: avoid; }
+}

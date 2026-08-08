@@ -1,0 +1,373 @@
+/* ==========================================================================
+   layout.css — 六幕布局
+   反「柔和浅色极简」的四个硬性手段：
+     1 超大字压满屏宽，贴左满出血，绝不居中
+     2 Act 2 / Act 5 满幅高饱和色场（由 WebGL 层渲染，玻璃能折射它）
+     3 1px 纯黑硬线贯穿；元素允许跨栏、碰撞、越界
+     4 禁止圆角卡片 / 居中 Hero / 等距三栏 / 柔和投影
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-38) transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);      /* WebGL 层负责实际色场；这是兜底 */
+  color: var(--ink);
+  font-family: var(--ff-body);
+  overflow-x: clip;
+  transition: background var(--t-slow) var(--e-in-out);
+}
+body.no-webgl { background: var(--field); }
+
+#gl {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#main { position: relative; z-index: 1; }
+
+/* --- 幕次容器 --- */
+.act {
+  position: relative;
+  min-height: 100svh;
+  padding: clamp(1.5rem, 4vh, 3.5rem) calc(var(--gutter) + var(--rail-reserve))
+           clamp(2rem, 6vh, 5rem) var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  column-gap: var(--gutter);
+  align-content: start;
+  color: var(--fg);
+}
+.act > * { min-width: 0; }
+
+/* 幕内通用元素 */
+.act__index {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: var(--hair) solid var(--rule);
+  margin-bottom: clamp(1.6rem, 5vh, 4rem);
+}
+.act__kicker { font-family: var(--ff-mono); font-weight: 600; font-size: var(--f-micro);
+  letter-spacing: .2em; text-transform: uppercase; color: var(--fg); }
+.act__no { font-family: var(--ff-mono); font-size: var(--f-micro); letter-spacing: .16em; color: var(--fg-60); }
+
+.rule { grid-column: 1 / -1; height: var(--hair); background: var(--rule); opacity: .85; }
+
+/* ==========================================================================
+   ACT 1 — HERO
+   ========================================================================== */
+.act--hero { align-content: space-between; min-height: 100svh; row-gap: clamp(1rem, 3vh, 2rem); }
+
+.hero__top { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+
+.hero__mid { grid-column: 1 / -1; }
+.hero__title { display: block; }
+.hero__title .d-zh { display: block; }
+/* 第二行主动越出右边界，制造出血 */
+.hero__title .d-zh:nth-child(2) { margin-left: clamp(.5rem, 4.5vw, 5rem); }
+
+.hero__latin {
+  grid-column: 1 / -1;
+  margin-top: clamp(.3rem, 1.4vh, 1.2rem);
+  display: flex; align-items: baseline; gap: clamp(.8rem, 2vw, 2rem);
+  flex-wrap: wrap;
+}
+.hero__latin .d-la { font-size: clamp(1.15rem, 3.4vw, 3.6rem); letter-spacing: .02em; }
+.hero__latin .hero__dash { flex: 1 1 6rem; height: var(--hair); background: var(--rule); opacity: .9; }
+
+.hero__bottom {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  column-gap: var(--gutter);
+  row-gap: 1.2rem;
+  align-items: end;
+  padding-top: clamp(1rem, 3vh, 2rem);
+  border-top: var(--hair) solid var(--rule);
+}
+.hero__lede { grid-column: 1 / span 5; max-width: 46ch; }
+.hero__meta { grid-column: 8 / span 5; display: grid; row-gap: .3rem; }
+.hero__meta div { display: grid; grid-template-columns: 5.5rem 1fr; gap: .6rem;
+  border-bottom: var(--hair) solid var(--fg-14); padding-bottom: .28rem; }
+.hero__scroll { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
+  padding-top: .8rem; }
+.hero__scroll .bar { flex: 1 1 auto; height: var(--hair); background: var(--rule); opacity: .35; margin: 0 1rem; }
+
+/* ==========================================================================
+   ACT 2 — 三层主线（满幅电光蓝，乳白字）
+   ========================================================================== */
+.thesis__head { grid-column: 1 / span 7; }
+.thesis__latin { grid-column: 8 / -1; align-self: end; text-align: right; }
+.thesis__latin .d-la { font-size: clamp(1.4rem, 4vw, 4.2rem); }
+.thesis__lede { grid-column: 1 / span 6; margin-top: clamp(1rem, 3vh, 2rem); max-width: 52ch; }
+
+.layers { grid-column: 1 / -1; margin-top: clamp(1.8rem, 6vh, 4.5rem); border-top: var(--hair) solid var(--rule); }
+.layer {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 1fr) minmax(0, 3fr) minmax(0, 6fr) minmax(0, 3fr);
+  column-gap: var(--gutter);
+  align-items: baseline;
+  padding: clamp(.9rem, 2.4vh, 1.8rem) 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.layer__no { font-family: var(--ff-display-la); font-weight: 900;
+  font-size: clamp(2rem, 5vw, 5rem); line-height: .8; color: var(--fg); }
+.layer__title { font-family: var(--ff-display-zh); font-weight: 900;
+  font-size: clamp(1.15rem, 2.1vw, 2.1rem); line-height: 1.05; letter-spacing: -.02em; }
+.layer__claim { font-size: var(--f-body); line-height: 1.5; color: var(--fg); }
+.layer__repo { font-family: var(--ff-mono); font-size: var(--f-small); color: var(--fg-60); text-align: right; }
+
+.thesis__outro {
+  grid-column: 4 / -1;
+  margin-top: clamp(1.4rem, 4vh, 3rem);
+  font-family: var(--ff-display-zh); font-weight: 900;
+  font-size: clamp(1.3rem, 3vw, 3rem); line-height: 1.18; letter-spacing: -.025em;
+}
+
+/* ==========================================================================
+   项目幕通用（Act 3 / 4 / 5）
+   ========================================================================== */
+.proj__side { grid-column: 1 / span 3; }
+.proj__side dl { margin: 0; display: grid; row-gap: .34rem; }
+.proj__side dl > div { display: grid; grid-template-columns: 4.6rem 1fr; gap: .5rem;
+  border-bottom: var(--hair) solid var(--fg-14); padding-bottom: .26rem; }
+.proj__side dt { font-family: var(--ff-mono); font-size: var(--f-micro); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--fg-60); }
+.proj__side dd { margin: 0; font-family: var(--ff-mono); font-size: var(--f-small); color: var(--fg); }
+
+.proj__no {
+  font-family: var(--ff-display-la); font-weight: 900;
+  font-size: clamp(4rem, 11vw, 12rem); line-height: .78; letter-spacing: -.03em;
+  color: var(--fg); display: block; margin-bottom: .3rem;
+}
+.proj__main { grid-column: 4 / -1; }
+/* 项目标题允许折行：nowrap 会在 9 栏宽度里直接冲出版心 */
+.proj__title { margin-bottom: clamp(1rem, 2.6vh, 1.8rem); white-space: normal; line-height: .96; }
+
+/* 引语：向左越界，打破栏位 */
+.pullquote {
+  margin: clamp(1.2rem, 3.5vh, 2.6rem) 0;
+  margin-left: calc(-1 * clamp(1rem, 6vw, 7rem));
+  border-left: 3px solid var(--fg);
+  padding-left: clamp(.8rem, 1.6vw, 1.4rem);
+}
+.pullquote__en { font-family: var(--ff-display-la); font-style: italic; font-weight: 900;
+  font-size: clamp(1.3rem, 3.1vw, 3.1rem); line-height: 1.04; letter-spacing: .002em; color: var(--fg); }
+.pullquote__zh { margin-top: .55rem; font-family: var(--ff-body); font-size: var(--f-body); color: var(--fg-60); }
+
+/* 架构流：横向 mono 链 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0;
+  margin: clamp(1rem, 3vh, 2rem) 0; border-top: var(--hair) solid var(--rule); border-bottom: var(--hair) solid var(--rule); }
+.flow__node { flex: 1 1 auto; padding: .62rem .7rem; font-family: var(--ff-mono); font-size: var(--f-micro);
+  letter-spacing: .06em; color: var(--fg-60); border-right: var(--hair) solid var(--fg-14); white-space: nowrap; }
+.flow__node:last-child { border-right: 0; }
+.flow__node.is-gate { color: var(--ink); background: var(--spec-c); font-weight: 600; }
+
+/* 论据列表：靠硬线分隔，不用卡片 */
+.points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gutter);
+  border-top: var(--hair) solid var(--rule); margin-top: clamp(1rem, 3vh, 2rem); }
+.point { padding: .85rem 0; border-bottom: var(--hair) solid var(--fg-14); }
+.point__t { font-family: var(--ff-body); font-weight: 600; font-size: var(--f-h3); margin-bottom: .22rem; }
+.point__d { font-size: var(--f-small); line-height: 1.55; color: var(--fg-60); }
+
+/* 边界声明：琥珀实色块 + 近黑字（对比度 11.89） */
+.honesty {
+  grid-column: 1 / -1;
+  margin-top: clamp(1.4rem, 4vh, 3rem);
+  background: var(--spec-c);
+  color: var(--ink);
+  padding: clamp(1rem, 2.6vh, 1.8rem) clamp(1rem, 2.2vw, 2rem);
+  display: grid; grid-template-columns: 5.5rem 1fr; gap: clamp(.8rem, 2vw, 2rem);
+}
+.honesty__label { font-family: var(--ff-mono); font-weight: 600; font-size: var(--f-micro);
+  letter-spacing: .2em; text-transform: uppercase; color: var(--ink); }
+.honesty__body { font-size: var(--f-body); line-height: 1.62; color: var(--ink); max-width: 74ch; }
+
+/* ==========================================================================
+   ACT 4 — 计数器 / ASR 表
+   ========================================================================== */
+.counters { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: var(--hair) solid var(--rule); border-bottom: var(--hair) solid var(--rule);
+  margin-bottom: clamp(1.2rem, 3.5vh, 2.6rem); }
+.counter { padding: clamp(.9rem, 2.4vh, 1.7rem) 0 clamp(.7rem, 2vh, 1.3rem);
+  border-right: var(--hair) solid var(--fg-14); padding-right: 1rem; }
+.counter:last-child { border-right: 0; }
+.counter__unit { display: block; font-family: var(--ff-mono); font-size: var(--f-small); color: var(--fg); margin-top: .3rem; }
+.counter__note { display: block; font-family: var(--ff-mono); font-size: var(--f-micro); color: var(--fg-38); margin-top: .12rem; }
+
+.p2__body { grid-column: 1 / span 6; }
+.p2__craft { grid-column: 7 / -1; }
+.craft { list-style: none; margin: 0; padding: 0; border-top: var(--hair) solid var(--fg-14); }
+.craft li { padding: .62rem 0 .62rem 1.7rem; border-bottom: var(--hair) solid var(--fg-14);
+  font-size: var(--f-small); line-height: 1.55; color: var(--fg); position: relative; }
+.craft li::before { content: "→"; position: absolute; left: 0; font-family: var(--ff-mono); color: var(--fg-38); }
+
+.asr { grid-column: 1 / -1; margin-top: clamp(1.4rem, 4vh, 3rem); }
+.asr table { width: 100%; border-collapse: collapse; }
+.asr caption { text-align: left; padding-bottom: .5rem; }
+.asr th, .asr td { text-align: left; padding: .6rem .7rem .6rem 0; border-bottom: var(--hair) solid var(--fg-14);
+  font-size: var(--f-small); vertical-align: baseline; }
+.asr thead th { border-bottom: var(--hair) solid var(--rule); font-family: var(--ff-mono);
+  font-size: var(--f-micro); letter-spacing: .14em; text-transform: uppercase; color: var(--fg-60); font-weight: 600; }
+.asr td:first-child { font-family: var(--ff-mono); font-weight: 600; color: var(--fg); width: 30%; }
+.asr td:nth-child(2) { width: 14%; font-family: var(--ff-mono); }
+.asr tr.is-primary td { background: var(--spec-c); color: var(--ink); }
+.asr tr.is-dropped td:nth-child(2) { color: var(--fg-38); }
+.p2__footer { grid-column: 1 / -1; margin-top: clamp(1rem, 3vh, 2rem); padding-top: .8rem;
+  border-top: var(--hair) solid var(--rule); }
+
+/* ==========================================================================
+   ACT 5 — 质量裁决 + 研究方向（满幅品红，近黑字）
+   ========================================================================== */
+.p3__quote { grid-column: 1 / -1; margin: clamp(1rem, 3vh, 2.4rem) 0 clamp(1.2rem, 4vh, 3rem); }
+.p3__quote .d-zh { font-size: clamp(2.1rem, 7.4vw, 8.5rem); line-height: .88; white-space: normal; }
+
+.p3__grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter); row-gap: clamp(1rem, 3vh, 2rem); border-top: var(--hair) solid var(--rule);
+  padding-top: clamp(1rem, 3vh, 2rem); }
+.p3__body { grid-column: 1 / span 5; }
+.p3__model { grid-column: 7 / span 3; }
+.p3__pipe  { grid-column: 10 / span 3; }
+.p3__banned { grid-column: 1 / span 5; }
+.p3__self  { grid-column: 7 / span 6; }
+
+.chain { list-style: none; margin: .6rem 0 0; padding: 0; }
+.chain li { font-family: var(--ff-mono); font-size: var(--f-small); padding: .34rem 0;
+  border-bottom: var(--hair) solid var(--fg-14); }
+.chain li::before { content: attr(data-i) "  "; color: var(--fg-38); }
+
+.tags { display: flex; flex-wrap: wrap; gap: .3rem .5rem; margin-top: .6rem; }
+.tags span { font-family: var(--ff-mono); font-size: var(--f-micro); letter-spacing: .06em;
+  border: var(--hair) solid var(--fg-38); padding: .18rem .45rem; color: var(--fg); }
+
+.banned { list-style: none; margin: .6rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem .8rem; }
+.banned li { font-family: var(--ff-mono); font-size: var(--f-small); color: var(--fg-60);
+  text-decoration: line-through; text-decoration-thickness: 2px; }
+
+.p3__philosophy { grid-column: 1 / -1; margin-top: clamp(1rem, 3vh, 2rem); padding-top: .9rem;
+  border-top: var(--hair) solid var(--rule); }
+.p3__philosophy .h2 { font-size: clamp(1.15rem, 2.3vw, 2.2rem); }
+
+.selfcheck { border-left: 3px solid var(--fg); padding-left: .9rem; }
+
+/* 研究方向 */
+.research { grid-column: 1 / -1; margin-top: clamp(2rem, 7vh, 6rem); padding-top: clamp(1.2rem, 3.5vh, 2.4rem);
+  border-top: 3px solid var(--rule); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gutter); row-gap: clamp(.8rem, 2.4vh, 1.6rem); }
+.research__head { grid-column: 1 / span 4; }
+.research__body { grid-column: 5 / -1; display: grid; row-gap: .9rem; max-width: 68ch; }
+.research__stack { grid-column: 5 / -1; margin-top: .6rem; display: grid; row-gap: .3rem; }
+.research__stack div { display: grid; grid-template-columns: 7rem 1fr; gap: .6rem;
+  border-bottom: var(--hair) solid var(--fg-14); padding-bottom: .3rem; }
+.research__note { grid-column: 5 / -1; }
+
+.mol { grid-column: 1 / span 4; align-self: end; margin-top: clamp(1rem, 3vh, 2rem); }
+.mol__hint { font-family: var(--ff-mono); font-size: var(--f-micro); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--fg-60); display: flex; align-items: center; gap: .5rem; }
+.mol__hint::after { content: ""; flex: 1 1 2rem; height: var(--hair); background: var(--fg-38); }
+.mol ul { list-style: none; margin: .5rem 0 0; padding: 0; }
+.mol li { font-family: var(--ff-mono); font-size: var(--f-small); color: var(--fg);
+  border-bottom: var(--hair) solid var(--fg-14); padding: .26rem 0; }
+
+/* ==========================================================================
+   ACT 6 — 索引 + 结尾
+   ========================================================================== */
+.idx { grid-column: 1 / -1; border-top: var(--hair) solid var(--rule); }
+.idx__row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 7fr) minmax(0, 2fr);
+  column-gap: var(--gutter); padding: clamp(.8rem, 2.2vh, 1.5rem) 0;
+  border-bottom: var(--hair) solid var(--rule); align-items: baseline; }
+.idx__repo { font-family: var(--ff-mono); font-weight: 600; font-size: var(--f-h3); color: var(--fg);
+  text-decoration: none; border-bottom: 2px solid transparent; transition: border-color var(--t-fast) var(--e-out); }
+.idx__repo:hover, .idx__repo:focus-visible { border-color: var(--fg); }
+.idx__desc { font-size: var(--f-small); line-height: 1.55; color: var(--fg); }
+.idx__meta { font-family: var(--ff-mono); font-size: var(--f-micro); color: var(--fg-60); text-align: right; }
+.idx__attr { margin-top: .45rem; font-family: var(--ff-mono); font-size: var(--f-micro); line-height: 1.5;
+  color: var(--fg-60); border-left: 2px solid var(--spec-a); padding-left: .55rem; }
+.idx__attr a { color: inherit; }
+.idx__note { grid-column: 1 / -1; margin-top: .7rem; }
+
+.closing { grid-column: 1 / -1; margin-top: clamp(2.4rem, 9vh, 8rem); }
+.closing__title .d-zh { font-size: clamp(2.4rem, 8.6vw, 10.5rem); }
+.closing__body { margin-top: clamp(.9rem, 2.6vh, 1.8rem); max-width: 58ch; }
+.closing__cta { display: inline-flex; align-items: baseline; gap: .5rem; margin-top: clamp(1rem, 3vh, 2rem);
+  font-family: var(--ff-mono); font-weight: 600; font-size: clamp(1rem, 1.8vw, 1.6rem);
+  color: var(--fg); text-decoration: none; border-bottom: 3px solid var(--fg); padding-bottom: .15rem; }
+.closing__cta::after { content: "↗"; }
+
+.colophon { grid-column: 1 / -1; margin-top: clamp(2.4rem, 8vh, 7rem); padding-top: 1rem;
+  border-top: var(--hair) solid var(--rule); display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); column-gap: var(--gutter); row-gap: .5rem; }
+.colophon ul { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: var(--gutter); }
+.colophon li { break-inside: avoid; font-family: var(--ff-mono); font-size: var(--f-micro); line-height: 1.65;
+  color: var(--fg-60); padding: .18rem 0; }
+.colophon li:first-child { color: var(--fg); }
+.page-footer { grid-column: 1 / -1; margin-top: clamp(1.4rem, 4vh, 3rem); padding-top: .7rem;
+  border-top: var(--hair) solid var(--rule); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+/* ==========================================================================
+   链接
+   ========================================================================== */
+a { color: var(--fg); }
+.link {
+  color: var(--fg); text-decoration: none;
+  border-bottom: var(--hair) solid var(--fg-38);
+  transition: border-color var(--t-fast) var(--e-out);
+}
+.link:hover, .link:focus-visible { border-bottom-color: var(--fg); border-bottom-width: 2px; }
+
+/* ==========================================================================
+   响应式：窄屏坍缩为单列，但保留硬线与出血感（不变成居中卡片流）
+   ========================================================================== */
+@media (min-width: 1001px) {
+  :root { --rail-reserve: 5.4rem; }
+}
+
+@media (max-width: 1000px) {
+  .hero__lede, .hero__meta { grid-column: 1 / -1; }
+  .thesis__head, .thesis__latin, .thesis__lede, .thesis__outro { grid-column: 1 / -1; text-align: left; }
+  .layer { grid-template-columns: 3rem 1fr; row-gap: .2rem; }
+  .layer__claim, .layer__repo { grid-column: 2; text-align: left; }
+  .layer__no { grid-row: 1 / span 3; }
+  .proj__side, .proj__main { grid-column: 1 / -1; }
+  .proj__side { margin-bottom: 1.4rem; }
+  .pullquote { margin-left: 0; }
+  .points { grid-template-columns: 1fr; }
+  .counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .counter:nth-child(2n) { border-right: 0; }
+  .counter { border-bottom: var(--hair) solid var(--fg-14); }
+  .p2__body, .p2__craft { grid-column: 1 / -1; }
+  .p3__body, .p3__model, .p3__pipe, .p3__banned, .p3__self { grid-column: 1 / -1; }
+  .research__head, .research__body, .research__stack, .research__note, .mol { grid-column: 1 / -1; }
+  .idx__row { grid-template-columns: 1fr; row-gap: .35rem; }
+  .idx__meta { text-align: left; }
+  .colophon { grid-template-columns: 1fr; }
+  .colophon ul { columns: 1; }
+  .honesty { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  /* .d-zh 是 white-space:nowrap 的满出血巨标。桌面端向右溢出是刻意的，
+     但窄屏上 Hero 最长一行有 7 个汉字，15vw 会把「提议」直接切掉——
+     那不是大胆，是坏了。12.2vw 是 320px 也能放下 7 字 + 第二行缩进的上界。 */
+  :root { --f-display: clamp(1.9rem, 12.2vw, 3.4rem); }
+  .d-zh { letter-spacing: -.04em; }
+  .hero__title .d-zh:nth-child(2) { margin-left: clamp(.3rem, 2.4vw, 5rem); }
+  .counters { grid-template-columns: 1fr; }
+  .counter { border-right: 0; }
+  .asr table, .asr thead, .asr tbody, .asr tr, .asr td, .asr th { display: block; }
+  .asr thead { display: none; }
+  .asr tr { border-bottom: var(--hair) solid var(--rule); padding: .5rem 0; }
+  .asr td { border: 0; padding: .12rem 0; }
+  .asr td:first-child, .asr td:nth-child(2) { width: auto; }
+}

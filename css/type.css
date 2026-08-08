@@ -1,0 +1,157 @@
+/* ==========================================================================
+   type.css — 自托管字体与排版类
+   刻意失配：极高对比的拉丁 Didone（Bodoni Moda 900）× 极重的中文黑体
+   （Noto Sans SC 900）。这种不匹配就是防模板感的来源。
+   Bodoni 的细笔画在小字号会消失，因此只用于 ≥ 展示级字号。
+   全部 OFL 授权，fonttools 按实际用到的字形子集化。
+   ========================================================================== */
+
+@font-face {
+  font-family: "Bodoni Display";
+  src: url("../fonts/bodonimoda-900.woff2") format("woff2");
+  font-weight: 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Bodoni Display";
+  src: url("../fonts/bodonimoda-900-italic.woff2") format("woff2");
+  font-weight: 900; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "SC Display";
+  src: url("../fonts/notosanssc-900.woff2") format("woff2");
+  font-weight: 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex";
+  src: url("../fonts/plexsans-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex";
+  src: url("../fonts/plexsans-600.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex SC";
+  src: url("../fonts/plexsanssc-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex SC";
+  src: url("../fonts/plexsanssc-600.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex Mono";
+  src: url("../fonts/plexmono-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Plex Mono";
+  src: url("../fonts/plexmono-600.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+
+:root {
+  --ff-display-zh: "SC Display", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ff-display-la: "Bodoni Display", "Bodoni Moda", "Didot", Georgia, serif;
+  --ff-body: "Plex", "Plex SC", "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* Plex Mono 无中文字形；标签里有大量中文，必须显式接上同族 SC 面，
+     否则中文会掉到系统默认黑体，与 Plex 的灰度对不上。 */
+  --ff-mono: "Plex Mono", "Plex SC", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/* --- 巨型中文标题：贴左满出血，绝不居中 --- */
+.d-zh {
+  font-family: var(--ff-display-zh);
+  font-weight: 900;
+  font-size: var(--f-display);
+  /* Noto Sans SC Black 的字面几乎撑满 em 框：实测 .93 两行仍然相咬，
+     1.02 是「紧到有压迫感」与「不打架」的分界。 */
+  line-height: 1.02;
+  letter-spacing: -.045em;
+  color: var(--fg);
+  margin: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+.d-zh--s { font-size: var(--f-display-s); line-height: .97; }
+
+/* --- 拉丁 Didone 展示 --- */
+.d-la {
+  font-family: var(--ff-display-la);
+  font-weight: 900;
+  font-size: var(--f-latin);
+  line-height: .92;
+  letter-spacing: .005em;
+  color: var(--fg);
+  margin: 0;
+}
+.d-la--i { font-style: italic; }
+
+/* --- 标题层级 --- */
+.h2 {
+  font-family: var(--ff-display-zh);
+  font-weight: 900;
+  font-size: var(--f-h2);
+  line-height: 1.06;
+  letter-spacing: -.02em;
+  color: var(--fg);
+  margin: 0;
+}
+.h3 {
+  font-family: var(--ff-body);
+  font-weight: 600;
+  font-size: var(--f-h3);
+  line-height: 1.3;
+  letter-spacing: -.005em;
+  color: var(--fg);
+  margin: 0;
+}
+
+/* --- 正文 --- */
+.p {
+  font-family: var(--ff-body);
+  font-weight: 400;
+  font-size: var(--f-body);
+  line-height: 1.66;
+  color: var(--fg);
+  margin: 0;
+  text-wrap: pretty;
+}
+.p--60 { color: var(--fg-60); }
+.p--s  { font-size: var(--f-small); line-height: 1.6; }
+
+/* --- 等宽：标签、数据、仓库名 --- */
+.m {
+  font-family: var(--ff-mono);
+  font-weight: 400;
+  font-size: var(--f-small);
+  line-height: 1.45;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.m--label {
+  font-weight: 600;
+  font-size: var(--f-micro);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--fg-60);
+}
+.m--num {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- 巨型计数数字 --- */
+.count {
+  font-family: var(--ff-display-la);
+  font-weight: 900;
+  font-size: clamp(3.4rem, 8.4vw, 9rem);
+  line-height: .84;
+  letter-spacing: -.02em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  display: block;
+}

@@ -1,0 +1,75 @@
+/* ==========================================================================
+   tokens.css — 设计变量。颜色是角色，不是装饰。
+   四个强调色取自色散光谱本身（高折射端 → 低折射端），所以配色有物理动机。
+   对比度实测（WCAG）：
+     ink   on paper   15.98
+     paper on spec-a   6.54   → 电光蓝色场用乳白字
+     ink   on spec-d   5.26   → 品红色场用近黑字（乳白仅 3.04，正文不达标）
+     ink   on spec-c  11.89
+   ========================================================================== */
+
+:root {
+  /* --- 表面 / 墨 --- */
+  --paper:  #EFEBE4;   /* 骨白暖底，有重量，不是临床白 */
+  --panel:  #E4DFD6;   /* 次级面 */
+  --ink:    #12100E;   /* 近黑。只用于文字与硬线，绝不用作背景 */
+  --ink-60: rgba(18, 16, 14, .60);
+  --ink-38: rgba(18, 16, 14, .38);
+  --ink-14: rgba(18, 16, 14, .14);
+  --ink-08: rgba(18, 16, 14, .08);
+
+  /* --- 色散光谱（强调色） --- */
+  --spec-a: #2B1BFF;   /* 电光蓝 — 高折射端 */
+  --spec-b: #00C2A8;   /* 青绿 */
+  --spec-c: #FFC400;   /* 琥珀 */
+  --spec-d: #FF2E63;   /* 品红 — 低折射端 */
+
+  /* --- 每一幕的前景/背景配对（由 body[data-tone] 切换） --- */
+  --field:  var(--paper);
+  --fg:     var(--ink);
+  --fg-60:  var(--ink-60);
+  --fg-38:  var(--ink-38);
+  --fg-14:  var(--ink-14);
+  --rule:   var(--ink);
+
+  /* --- 排版比例 --- */
+  --f-display: clamp(3.2rem, 10.4vw, 12.5rem);   /* 巨型中文标题 */
+  --f-display-s: clamp(2.2rem, 6vw, 6.4rem);
+  --f-latin:   clamp(1.6rem, 5.2vw, 6rem); /* Bodoni 展示 */
+  --f-h2:      clamp(1.5rem, 2.6vw, 2.6rem);
+  --f-h3:      clamp(1.05rem, 1.35vw, 1.4rem);
+  --f-body:    clamp(.95rem, 1.02vw, 1.125rem);
+  --f-small:   clamp(.78rem, .82vw, .875rem);
+  --f-micro:   clamp(.66rem, .7vw, .75rem);
+
+  /* --- 栅格 --- */
+  --gutter: clamp(1.1rem, 3.2vw, 3.5rem);
+  --cols: 12;
+  --hair: 1px;
+  /* 章节轨在右侧固定悬浮，正文必须让出这条走廊，否则行尾会压在刻度上 */
+  --rail-reserve: 0px;
+
+  /* --- 动效 --- */
+  --e-out: cubic-bezier(.16, 1, .3, 1);
+  --e-in-out: cubic-bezier(.76, 0, .24, 1);
+  --t-fast: .22s;
+  --t-med: .5s;
+  --t-slow: .9s;
+}
+
+/* 幕次配色：切 tone 只换四个变量，其余全部继承 */
+body[data-tone="paper"]   { --field: var(--paper);  --fg: var(--ink);   --rule: var(--ink); }
+body[data-tone="blue"]    { --field: var(--spec-a); --fg: var(--paper); --rule: var(--paper); }
+body[data-tone="amber"]   { --field: var(--paper);  --fg: var(--ink);   --rule: var(--ink); }
+body[data-tone="magenta"] { --field: var(--spec-d); --fg: var(--ink);   --rule: var(--ink); }
+
+body[data-tone="blue"] {
+  --fg-60: rgba(239, 235, 228, .68);
+  --fg-38: rgba(239, 235, 228, .42);
+  --fg-14: rgba(239, 235, 228, .20);
+}
+body[data-tone="paper"], body[data-tone="amber"], body[data-tone="magenta"] {
+  --fg-60: var(--ink-60);
+  --fg-38: var(--ink-38);
+  --fg-14: var(--ink-14);
+}
