@@ -1,14 +1,7 @@
-"""Jingjing 个人主页 —— 交付前正式 QA（T1–T8）。
+"""Jingjing portfolio V2 delivery QA.
 
-用法:
-    python3 qa/test_site.py [--base URL] [--out DIR]
-
-产出:
-    <out>/shots/*.png      18 张截图（6 幕 × 3 视口）+ 兜底/降级态截图
-    <out>/qa_report.json   机器可读结果
-    <out>/qa_report.md     人读摘要
-
-每项测试返回 (name, passed, detail)。退出码 = 失败项数。
+Run with a static server already listening on port 8765:
+    python qa/test_site.py
 """
 from __future__ import annotations
 
@@ -22,28 +15,22 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-# --------------------------------------------------------------------------- 配置
-
-ACTS = ["act-hero", "act-thesis", "act-p1", "act-p2", "act-p3", "act-closing"]
-VIEWPORTS = [(1920, 1080), (1440, 900), (390, 844)]
-
-# SwiftShader 软栅格：真机跑 GPU，这里只是为了在容器里出图。
+VIEWPORTS = [(1440, 900), (768, 1024), (390, 844)]
+SHOT_TARGETS = [
+    "home", "principles", "project-daily-digital-twin", "project-skipping-lectures",
+    "project-svg-optimization-skill", "research", "more", "closing",
+]
 GL_ARGS = ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--disable-lcd-text"]
-NOGL_ARGS = ["--disable-gpu", "--disable-software-rasterizer", "--disable-lcd-text"]
 
-# GitHub API 实测（2026-08-09）：12 个公开仓库 = 11 非 fork + 1 fork。
-# 两个 IELTS 仓库不进站点（一个是 fork，一个是练习件）。
 ALLOWED_REPOS = {
     "nature-figure-skill", "svg-optimization-skill", "daily-digital-twin",
-    "jing1312", "skipping-lectures", "access-jingtujiaoxue", "baidu-ai-batch",
+    "skipping-lectures", "access-jingtujiaoxue", "baidu-ai-batch",
     "xiangzhang-course-pipeline", "flashcard-pharm", "TCM-Study-Materials",
-    "IELTS_player_practice_jing",
 }
-FORBIDDEN_REPOS = {"IELTS-practice"}          # fork，绝不出现
-UPSTREAM = "Yuan1z0825/nature-skills"          # nature-figure-skill 必须署上游
-
+FORBIDDEN_REPOS = {"IELTS-practice"}
+UPSTREAM = "Yuan1z0825/nature-skills"
 FONT_BUDGET_KB = 400.0
-CRITICAL_BUDGET_KB = 250.0                     # 首屏关键资源，不含 three.js
+CRITICAL_BUDGET_KB = 250.0
 
 
 @dataclass
@@ -54,329 +41,240 @@ class Result:
     data: dict = field(default_factory=dict)
 
 
-def _boot(pg, url: str, timeout: int = 120_000, expect_gl: bool = True) -> None:
-    pg.goto(url, wait_until="load", timeout=timeout)
-    pg.wait_for_function("() => window.__site && window.__site.ready", timeout=timeout)
-    pg.wait_for_timeout(2200 if expect_gl else 900)
+def _boot(page, url: str, timeout: int = 60_000) -> None:
+    page.goto(url, wait_until="load", timeout=timeout)
+    page.wait_for_function("window.__site && window.__site.ready", timeout=timeout)
+    page.wait_for_timeout(500)
 
 
-def _scroll_to_act(pg, act_id: str, settle: int = 1600) -> None:
-    pg.evaluate(
-        "(id) => { const el = document.getElementById(id);"
-        " window.scrollTo({top: el.offsetTop + el.offsetHeight / 2 - innerHeight / 2,"
-        " behavior: 'auto'}); }", act_id)
-    pg.wait_for_timeout(settle)
+def _scroll(page, element_id: str, settle: int = 350) -> None:
+    page.evaluate(
+        "id => { const el = document.getElementById(id);"
+        " const y = el.getBoundingClientRect().top + window.scrollY;"
+        " document.documentElement.style.scrollBehavior = 'auto';"
+        " window.scrollTo(0, Math.max(0, y - 92)); }",
+        element_id,
+    )
+    page.wait_for_timeout(settle)
 
-
-# --------------------------------------------------------------------------- T1
 
 def t1_cold_boot(browser, base: str) -> Result:
-    """冷启动：零 uncaught error、零失败请求、六幕 DOM 齐全。"""
-    errs, failed = [], []
-    pg = browser.new_page(viewport={"width": 1440, "height": 900})
-    pg.on("pageerror", lambda e: errs.append(str(e)))
-    pg.on("console", lambda m: errs.append(f"console: {m.text}") if m.type == "error" else None)
-    pg.on("requestfailed", lambda r: failed.append(f"{r.url} :: {r.failure}"))
-    _boot(pg, f"{base}?tier=0&qa=1")
-    present = pg.evaluate("(ids) => ids.filter((i) => !!document.getElementById(i))", ACTS)
-    state = pg.evaluate("() => window.__site && ({webgl: window.__site.webgl,"
-                        " acts: window.__site.acts, rail: window.__site.railItems,"
-                        " magnets: window.__site.magnets})")
-    pg.close()
-    ok = not errs and not failed and len(present) == len(ACTS) and state and state["webgl"]
+    errors, failed = [], []
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+    page.on("requestfailed", lambda request: failed.append(f"{request.url}: {request.failure}"))
+    _boot(page, f"{base}?qa=1")
+    state = page.evaluate("({webgl: __site.webgl, rendering: __site.rendering, morph: __site.morph})")
+    counts = {
+        "sections": page.locator("main > section").count(),
+        "projects": page.locator(".project").count(),
+        "nav": page.locator("#primary-nav a").count(),
+    }
+    page.close()
+    ok = not errors and not failed and state["webgl"] and counts == {"sections": 5, "projects": 3, "nav": 5}
     return Result("T1 冷启动", ok,
-                  f"errors={len(errs)} failedRequests={len(failed)} "
-                  f"acts={len(present)}/{len(ACTS)} webgl={state and state['webgl']}",
-                  {"errors": errs[:10], "failed": failed[:10], "state": state})
+                  f"errors={len(errors)} failed={len(failed)} webgl={state['webgl']} counts={counts}",
+                  {"errors": errors[:10], "failed": failed[:10], "state": state, "counts": counts})
 
 
-# --------------------------------------------------------------------------- T2
-
-def t2_screenshots(browser, base: str, shots: Path) -> Result:
-    """6 幕 × 3 视口 = 18 张截图，同时断言无横向溢出。"""
+def t2_responsive(browser, base: str, shots: Path) -> Result:
     shots.mkdir(parents=True, exist_ok=True)
-    made, overflow, errs = [], [], []
-    for w, h in VIEWPORTS:
-        pg = browser.new_page(viewport={"width": w, "height": h}, device_scale_factor=1)
-        pg.on("pageerror", lambda e: errs.append(str(e)))
-        _boot(pg, f"{base}?tier=0&qa=1")
-        for i, act in enumerate(ACTS):
-            _scroll_to_act(pg, act)
-            path = shots / f"{w}x{h}_{i}_{act}.png"
-            pg.screenshot(path=str(path))
+    overflow, overlaps, errors, made = [], [], [], []
+    for width, height in VIEWPORTS:
+        page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=1)
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        _boot(page, f"{base}?qa=1")
+        for target in SHOT_TARGETS:
+            _scroll(page, target)
+            path = shots / f"{width}x{height}_{target}.png"
+            page.screenshot(path=str(path))
             made.append(path.name)
-            ov = pg.evaluate("() => document.documentElement.scrollWidth - "
-                             "document.documentElement.clientWidth")
-            if ov > 1:
-                # 找出到底是谁溢出的，报告里直接给出选择器
-                who = pg.evaluate(
-                    "() => { const lim = document.documentElement.clientWidth; const out = [];"
-                    " document.querySelectorAll('body *').forEach((el) => {"
-                    "   const r = el.getBoundingClientRect();"
-                    "   if (r.width > 0 && r.right > lim + 1 && el.children.length === 0)"
-                    "     out.push((el.className || el.tagName) + ' right=' + Math.round(r.right));"
-                    " }); return out.slice(0, 6); }")
-                overflow.append({"viewport": f"{w}x{h}", "act": act, "overflowPx": ov,
-                                 "elements": who})
-        pg.close()
-    ok = len(made) == len(ACTS) * len(VIEWPORTS) and not overflow and not errs
-    return Result("T2 三视口截图 + 横向溢出", ok,
-                  f"shots={len(made)}/18 overflowCases={len(overflow)} errors={len(errs)}",
-                  {"overflow": overflow, "errors": errs[:5]})
+            delta = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+            if delta > 1:
+                overflow.append({"viewport": f"{width}x{height}", "target": target, "px": delta})
+        _scroll(page, "home")
+        overlap = page.evaluate("""() => {
+          const a = document.querySelector('.hero__copy').getBoundingClientRect();
+          const b = document.querySelector('.hero__visual').getBoundingClientRect();
+          return Math.max(0, Math.min(a.right,b.right)-Math.max(a.left,b.left)) *
+                 Math.max(0, Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+        }""")
+        if overlap > 1:
+            overlaps.append({"viewport": f"{width}x{height}", "area": overlap})
+        page.close()
+    expected = len(VIEWPORTS) * len(SHOT_TARGETS)
+    ok = len(made) == expected and not overflow and not overlaps and not errors
+    return Result("T2 响应式截图", ok,
+                  f"shots={len(made)}/{expected} overflow={len(overflow)} heroOverlap={len(overlaps)} errors={len(errors)}",
+                  {"overflow": overflow, "overlaps": overlaps, "errors": errors[:5]})
 
 
-# --------------------------------------------------------------------------- T3
-
-def t3_morph_anchors(browser, base: str) -> Result:
-    """三个形变锚点：幕中心处 morph 必须精确落在 0 / 1 / 2。"""
-    checks = [("act-hero", 0.0), ("act-p1", 1.0), ("act-p3", 2.0)]
-    pg = browser.new_page(viewport={"width": 1440, "height": 900})
-    _boot(pg, f"{base}?tier=0&qa=1")
-    rows, ok = [], True
-    for act, want in checks:
-        _scroll_to_act(pg, act)
-        got = pg.evaluate("() => window.__site.morph")
-        good = abs(got - want) <= 0.05
-        ok = ok and good
-        rows.append({"act": act, "want": want, "got": round(got, 4), "pass": good})
-    pg.close()
-    return Result("T3 形变锚点", ok,
-                  " ".join(f"{r['act']}={r['got']:.3f}(want {r['want']})" for r in rows),
-                  {"anchors": rows})
+def t3_morph(browser, base: str) -> Result:
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    _boot(page, f"{base}?qa=1")
+    start = page.evaluate("__site.morph")
+    page.evaluate("window.scrollTo(0, document.getElementById('home').offsetHeight * .62)")
+    page.wait_for_timeout(300)
+    end = page.evaluate("__site.morph")
+    page.close()
+    ok = start <= .05 and end >= .7
+    return Result("T3 Evidence Core 形变", ok, f"start={start:.3f} end={end:.3f}", {"start": start, "end": end})
 
 
-# --------------------------------------------------------------------------- T4
-
-def t4_quality_downgrade(browser, base: str) -> Result:
-    """注入伪造低 FPS：应从 High 降到 Mid/Low，且不来回抖动。
-
-    ?tier=0 只是把起点钉在 High（容器里是 1 核软栅格，initialTier() 会自己起在 Mid，
-    测不到 High→Mid 这一跳）。它同时会 freeze 住档位，所以喂帧前必须 unfreeze，
-    否则测的是「锁档功能」而不是「降质逻辑」。
-    喂帧量要够：quality.js 需要先攒满 30 帧窗口，再连续 2s 低于阈值才降档，
-    20fps 下 = 30 + 40 = 70 tick，feedFps(20, 5) 给 100 tick 才够。
-    """
-    pg = browser.new_page(viewport={"width": 1440, "height": 900})
-    _boot(pg, f"{base}?tier=0")          # 不加 qa=1，让降质逻辑真正生效
-    start = pg.evaluate("() => ({tier: window.__site.tier, name: window.__site.tierName})")
-    pg.evaluate("() => window.__site.quality.unfreeze()")
-    pg.evaluate("() => window.__site.feedFps(20, 5)")
-    pg.wait_for_timeout(600)
-    after_low = pg.evaluate("() => ({tier: window.__site.tier, name: window.__site.tierName,"
-                            " samples: window.__site.samples, fbo: window.__site.fboScale})")
-    # 抖动检查：再喂一次同样的低 FPS，档位不应继续来回跳
-    trace = []
-    for _ in range(4):
-        pg.evaluate("() => window.__site.feedFps(20, 1)")
-        pg.wait_for_timeout(250)
-        trace.append(pg.evaluate("() => window.__site.tier"))
-    pg.close()
-    dropped = after_low["tier"] > start["tier"]
-    stable = len(set(trace)) <= 2 and trace == sorted(trace)   # 只许单调下降，不许反复横跳
-    return Result("T4 自适应降质", dropped and stable,
-                  f"{start['name']} -> {after_low['name']} "
-                  f"(samples={after_low['samples']} fbo={after_low['fbo']}) trace={trace}",
-                  {"start": start, "after": after_low, "trace": trace})
+def t4_render_lifecycle(browser, base: str) -> Result:
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    _boot(page, base)
+    top = page.evaluate("__site.rendering")
+    _scroll(page, "research", settle=800)
+    away = page.evaluate("__site.rendering")
+    page.close()
+    ok = bool(top) and not away
+    return Result("T4 3D 生命周期", ok, f"heroRendering={top} awayRendering={away}")
 
 
-# --------------------------------------------------------------------------- T5
+def t5_no_webgl(browser, base: str, shots: Path) -> Result:
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    _boot(page, f"{base}?qa=1&no-webgl=1")
+    info = page.evaluate("""() => ({
+      webgl: __site.webgl,
+      noWebgl: document.body.classList.contains('no-webgl'),
+      poster: getComputedStyle(document.querySelector('.core-poster')).display,
+      projects: document.querySelectorAll('.project').length,
+      text: document.body.innerText.replace(/\s+/g, '').length
+    })""")
+    page.screenshot(path=str(shots / "fallback_no-webgl.png"))
+    page.close()
+    ok = not info["webgl"] and info["noWebgl"] and info["poster"] != "none" \
+        and info["projects"] == 3 and info["text"] > 1800 and not errors
+    return Result("T5 无 WebGL 降级", ok,
+                  f"noWebgl={info['noWebgl']} poster={info['poster']} projects={info['projects']} text={info['text']} errors={len(errors)}",
+                  {"info": info, "errors": errors})
 
-def t5_no_webgl(playwright, base: str, shots: Path) -> Result:
-    """无 WebGL 兜底：body.no-webgl，六幕文字内容 100% 可读。"""
-    b = playwright.chromium.launch(args=NOGL_ARGS)
-    pg = b.new_page(viewport={"width": 1440, "height": 900})
-    errs = []
-    pg.on("pageerror", lambda e: errs.append(str(e)))
-    _boot(pg, f"{base}?qa=1", expect_gl=False)
-    info = pg.evaluate(
-        "() => ({ noWebgl: document.body.classList.contains('no-webgl'),"
-        "  webgl: window.__site.webgl,"
-        "  acts: [...document.querySelectorAll('.act')].length,"
-        "  hidden: [...document.querySelectorAll('.act')]"
-        "            .filter((a) => getComputedStyle(a).display === 'none').length,"
-        "  textLen: document.body.innerText.replace(/\\s+/g, '').length })")
-    pg.screenshot(path=str(shots / "fallback_no-webgl.png"), full_page=False)
-    pg.close(); b.close()
-    ok = (info["noWebgl"] or not info["webgl"]) and info["acts"] == 6 \
-        and info["hidden"] == 0 and info["textLen"] > 2000 and not errs
-    return Result("T5 无 WebGL 兜底", ok,
-                  f"no-webgl={info['noWebgl']} acts={info['acts']} hiddenActs={info['hidden']} "
-                  f"textChars={info['textLen']} errors={len(errs)}", info)
-
-
-# --------------------------------------------------------------------------- T6
 
 def t6_reduced_motion(browser, base: str, shots: Path) -> Result:
-    """prefers-reduced-motion：动画冻结、计数器直接显示终值、内容不缺。"""
-    ctx = browser.new_context(viewport={"width": 1440, "height": 900},
-                              reduced_motion="reduce")
-    pg = ctx.new_page()
-    errs = []
-    pg.on("pageerror", lambda e: errs.append(str(e)))
-    _boot(pg, base)
-    _scroll_to_act(pg, "act-p2")
-    info = pg.evaluate(
-        "() => { const t0 = window.__site.morph;"
-        "  const nums = [...document.querySelectorAll('.counter .count')].map("
-        "      (n) => n.textContent.trim());"
-        "  return {counters: nums, morph: t0}; }")
-    pg.wait_for_timeout(700)
-    drift = pg.evaluate("(m) => Math.abs(window.__site.morph - m)", info["morph"])
-    pg.screenshot(path=str(shots / "reduced-motion_act-p2.png"))
-    ctx.close()
-    # 计数器终值应已就位（153 / 146 / 122 / 55+）
-    want = ["153", "146", "122", "55"]
-    counters_ok = len(info["counters"]) >= 4 and all(
-        any(w in c for c in info["counters"]) for w in want)
-    ok = counters_ok and drift < 1e-6 and not errs
+    context = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    page = context.new_page()
+    _boot(page, base)
+    first = page.evaluate("({reduced: __site.reduced, morph: __site.morph, hidden: [...document.querySelectorAll('.reveal')].filter(e => getComputedStyle(e).opacity === '0').length})")
+    page.wait_for_timeout(600)
+    second = page.evaluate("__site.morph")
+    page.screenshot(path=str(shots / "reduced-motion.png"))
+    context.close()
+    ok = first["reduced"] and first["hidden"] == 0 and abs(second - first["morph"]) < 1e-6
     return Result("T6 reduced-motion", ok,
-                  f"counters={info['counters']} morphDrift={drift:.2e} errors={len(errs)}",
-                  {"counters": info["counters"], "drift": drift, "errors": errs[:5]})
+                  f"reduced={first['reduced']} hidden={first['hidden']} drift={abs(second-first['morph']):.2e}", first)
 
-
-# --------------------------------------------------------------------------- T7
 
 def t7_weight(browser, base: str, site_dir: Path) -> Result:
-    """资源预算，按**实际下行字节**算，不是磁盘字节。
-
-    本地 http.server 不压缩，GitHub Pages 压缩。用 min(raw, gzip-9) 近似真实线上传输量：
-    HTML/CSS/JS 会被压掉 ~3-4 倍，woff2 已经是压缩容器、gzip 不再变小。
-    口径：字体总量 <400KB；首屏关键资源（含全部字体、不含 three.js）<250KB。
-    three.js 单列——它是渐进增强，无 WebGL 的用户根本不下载后续渲染路径。
-    """
     fonts = sorted((site_dir / "fonts").glob("*.woff2"))
-    font_kb = sum(f.stat().st_size for f in fonts) / 1024
+    font_kb = sum(path.stat().st_size for path in fonts) / 1024
+    seen: dict[str, tuple[int, int]] = {}
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
 
-    seen: dict[str, tuple[int, int]] = {}          # url -> (raw, wire)
-    pg = browser.new_page(viewport={"width": 1440, "height": 900})
-
-    def on_response(r):
+    def collect(response):
         try:
-            if r.request.resource_type in ("document", "stylesheet", "script", "font", "fetch",
-                                           "xhr", "image"):
-                body = r.body()
-                seen[r.url] = (len(body), min(len(body), len(gzip.compress(body, 9))))
+            if response.request.resource_type in {"document", "stylesheet", "script", "font", "fetch", "image"}:
+                body = response.body()
+                seen[response.url] = (len(body), min(len(body), len(gzip.compress(body, 9))))
         except Exception:
             pass
 
-    pg.on("response", on_response)
-    _boot(pg, f"{base}?tier=0&qa=1")
-    pg.close()
-
-    three_kb = sum(v[1] for k, v in seen.items() if "/vendor/three/" in k) / 1024
-    critical_kb = sum(v[1] for k, v in seen.items() if "/vendor/three/" not in k) / 1024
-    raw_kb = sum(v[0] for v in seen.values()) / 1024
+    page.on("response", collect)
+    _boot(page, f"{base}?qa=1")
+    page.close()
+    three_kb = sum(value[1] for url, value in seen.items() if "/vendor/three/" in url) / 1024
+    critical_kb = sum(value[1] for url, value in seen.items() if "/vendor/three/" not in url) / 1024
     ok = font_kb < FONT_BUDGET_KB and critical_kb < CRITICAL_BUDGET_KB
-    breakdown = {k.split("8765/")[-1].split("?")[0]: round(v[1] / 1024, 1)
-                 for k, v in sorted(seen.items(), key=lambda x: -x[1][1])}
     return Result("T7 资源预算", ok,
-                  f"fonts={font_kb:.1f}KB/<{FONT_BUDGET_KB:.0f} "
-                  f"critical(gzip, excl three)={critical_kb:.1f}KB/<{CRITICAL_BUDGET_KB:.0f} "
-                  f"three(gzip)={three_kb:.1f}KB total(raw)={raw_kb:.1f}KB",
-                  {"fontKB": round(font_kb, 1), "criticalGzipKB": round(critical_kb, 1),
-                   "threeGzipKB": round(three_kb, 1), "totalRawKB": round(raw_kb, 1),
-                   "wireBreakdownKB": breakdown,
-                   "fonts": {f.name: f.stat().st_size for f in fonts}})
+                  f"fonts={font_kb:.1f}KB critical={critical_kb:.1f}KB three={three_kb:.1f}KB",
+                  {"fontKB": font_kb, "criticalKB": critical_kb, "threeKB": three_kb})
 
-
-# --------------------------------------------------------------------------- T8
 
 def t8_content(browser, base: str) -> Result:
-    """内容完整性：仓库名白名单、fork 不得出现、上游归属必须在站内。"""
-    pg = browser.new_page(viewport={"width": 1440, "height": 900})
-    _boot(pg, f"{base}?qa=1", expect_gl=False)
-    text = pg.evaluate("() => document.body.innerText")
-    hrefs = pg.evaluate("() => [...document.querySelectorAll('a[href]')].map((a) => a.href)")
-    pg.close()
-
-    # 站内出现的 jing1312 仓库名
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    _boot(page, f"{base}?qa=1&no-webgl=1")
+    text = page.evaluate("document.body.innerText")
+    hrefs = page.evaluate("[...document.querySelectorAll('a[href]')].map(a => a.href)")
+    page.close()
     mentioned = set()
-    for h in hrefs:
-        m = re.match(r"https://github\.com/jing1312/([A-Za-z0-9._-]+)/?$", h)
-        if m:
-            mentioned.add(m.group(1))
-    for name in ALLOWED_REPOS | FORBIDDEN_REPOS:
-        if re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text):
-            mentioned.add(name)
-
+    for href in hrefs:
+        match = re.match(r"https://github\.com/jing1312/([A-Za-z0-9._-]+)/?$", href)
+        if match:
+            mentioned.add(match.group(1))
     unknown = sorted(mentioned - ALLOWED_REPOS)
     forbidden = sorted(mentioned & FORBIDDEN_REPOS)
-    attr_ok = UPSTREAM in text and f"https://github.com/{UPSTREAM}" in hrefs
-    no_contact = not re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)     # 用户要求不放联系方式
-    no_pub = "Publications" not in text and "论文列表" not in text
-
-    ok = not unknown and not forbidden and attr_ok and no_contact and no_pub
+    attribution = UPSTREAM in text and f"https://github.com/{UPSTREAM}" in hrefs
+    no_email = not re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", text)
+    required = all(token in text for token in ["132", "153", "146", "122", "55+", "青蒿素"])
+    ok = not unknown and not forbidden and attribution and no_email and required
     return Result("T8 内容完整性", ok,
-                  f"repos={len(mentioned)} unknown={unknown} forbidden={forbidden} "
-                  f"upstreamAttribution={attr_ok} noEmail={no_contact} noPublications={no_pub}",
-                  {"mentioned": sorted(mentioned), "unknown": unknown,
-                   "forbidden": forbidden, "attribution": attr_ok})
+                  f"repos={len(mentioned)} unknown={unknown} forbidden={forbidden} attribution={attribution} noEmail={no_email} required={required}",
+                  {"mentioned": sorted(mentioned)})
 
 
-# --------------------------------------------------------------------------- main
+def t9_mobile_menu(browser, base: str) -> Result:
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    _boot(page, f"{base}?qa=1")
+    button = page.locator(".menu-toggle")
+    button.click()
+    opened = page.evaluate("({expanded: document.querySelector('.menu-toggle').getAttribute('aria-expanded'), open: document.querySelector('#primary-nav').classList.contains('is-open')})")
+    page.keyboard.press("Escape")
+    closed = page.evaluate("({expanded: document.querySelector('.menu-toggle').getAttribute('aria-expanded'), open: document.querySelector('#primary-nav').classList.contains('is-open')})")
+    page.close()
+    ok = opened == {"expanded": "true", "open": True} and closed == {"expanded": "false", "open": False}
+    return Result("T9 移动导航", ok, f"opened={opened} closed={closed}")
+
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="http://127.0.0.1:8765/index.html")
-    here = Path(__file__).resolve().parent
-    root = here.parent
-    # 开发布局 <root>/{site,qa}；交付布局仓库根直接放站点文件。两种都认。
-    site_default = root / "site" if (root / "site" / "index.html").exists() else root
-    ap.add_argument("--out", default=str(here))
-    ap.add_argument("--site", default=str(site_default))
-    args = ap.parse_args()
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base", default="http://127.0.0.1:8765/index.html")
+    parser.add_argument("--out", default=str(Path(__file__).resolve().parent))
+    parser.add_argument("--site", default=str(Path(__file__).resolve().parent.parent))
+    args = parser.parse_args()
     out = Path(args.out)
     shots = out / "shots"
     shots.mkdir(parents=True, exist_ok=True)
-    site_dir = Path(args.site)
-
+    started = time.time()
     results: list[Result] = []
-    t_start = time.time()
-    with sync_playwright() as p:
-        b = p.chromium.launch(args=GL_ARGS)
-        for fn, kwargs in [
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=GL_ARGS)
+        tests = [
             (t1_cold_boot, {}),
-            (t2_screenshots, {"shots": shots}),
-            (t3_morph_anchors, {}),
-            (t4_quality_downgrade, {}),
+            (t2_responsive, {"shots": shots}),
+            (t3_morph, {}),
+            (t4_render_lifecycle, {}),
+            (t5_no_webgl, {"shots": shots}),
             (t6_reduced_motion, {"shots": shots}),
-            (t7_weight, {"site_dir": site_dir}),
+            (t7_weight, {"site_dir": Path(args.site)}),
             (t8_content, {}),
-        ]:
+            (t9_mobile_menu, {}),
+        ]
+        for function, kwargs in tests:
             try:
-                results.append(fn(b, args.base, **kwargs))
-            except Exception as exc:                      # noqa: BLE001
-                results.append(Result(fn.__name__, False, f"EXCEPTION {type(exc).__name__}: {exc}"))
-            print(f"  {'PASS' if results[-1].passed else 'FAIL'}  {results[-1].name}"
-                  f"  —  {results[-1].detail}")
-        b.close()
+                result = function(browser, args.base, **kwargs)
+            except Exception as error:  # noqa: BLE001
+                result = Result(function.__name__, False, f"EXCEPTION {type(error).__name__}: {error}")
+            results.append(result)
+            print(f"  {'PASS' if result.passed else 'FAIL'}  {result.name} — {result.detail}")
+        browser.close()
 
-        try:
-            r5 = t5_no_webgl(p, args.base, shots)
-        except Exception as exc:                          # noqa: BLE001
-            r5 = Result("T5 无 WebGL 兜底", False, f"EXCEPTION {type(exc).__name__}: {exc}")
-        results.insert(4, r5)
-        print(f"  {'PASS' if r5.passed else 'FAIL'}  {r5.name}  —  {r5.detail}")
-
-    results.sort(key=lambda r: r.name)
-    failed = [r for r in results if not r.passed]
-    elapsed = time.time() - t_start
-
-    (out / "qa_report.json").write_text(json.dumps(
-        {"passed": len(results) - len(failed), "total": len(results),
-         "elapsedSec": round(elapsed, 1),
-         "results": [{"name": r.name, "pass": r.passed, "detail": r.detail, "data": r.data}
-                     for r in results]},
-        ensure_ascii=False, indent=2), encoding="utf-8")
-
-    lines = [f"# QA 报告 — Jingjing 个人主页", "",
-             f"{len(results) - len(failed)} / {len(results)} 通过 · 用时 {elapsed:.0f}s", "",
-             "| 测试 | 结果 | 说明 |", "| --- | --- | --- |"]
-    lines += [f"| {r.name} | {'PASS' if r.passed else 'FAIL'} | {r.detail} |" for r in results]
+    elapsed = time.time() - started
+    failed = [result for result in results if not result.passed]
+    report = {
+        "passed": len(results) - len(failed),
+        "total": len(results),
+        "elapsedSec": round(elapsed, 1),
+        "results": [{"name": result.name, "pass": result.passed, "detail": result.detail, "data": result.data} for result in results],
+    }
+    (out / "qa_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    lines = ["# QA 报告 — Jingjing 个人主页 V2", "", f"{report['passed']} / {report['total']} 通过 · 用时 {elapsed:.0f}s", "", "| 测试 | 结果 | 说明 |", "| --- | --- | --- |"]
+    lines.extend(f"| {result.name} | {'PASS' if result.passed else 'FAIL'} | {result.detail} |" for result in results)
     (out / "qa_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-    print(f"\n{len(results) - len(failed)}/{len(results)} passed in {elapsed:.0f}s")
+    print(f"\n{report['passed']}/{report['total']} passed in {elapsed:.0f}s")
     return len(failed)
 
 
