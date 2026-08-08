@@ -1,85 +1,41 @@
-/* ==========================================================================
-   tokens.css — 设计变量 · 梦幻夏日版
-   夏日清晨的天空：清蓝渐变 + 奶白柔云 + 暖阳。全部来自一套色板：
-     天空 = 天蓝 → 淡青 → 奶桃；强调色 = 草莓粉 / 薄荷绿 / 晴空蓝 / 香芋紫 / 柠檬黄
-   版式语言：白玻璃磨砂面板 + 大圆角 + 柔影，3D 玻璃宝石是唯一的主角。
-   ========================================================================== */
-
 :root {
-  /* --- 墨 / 面 --- */
-  --paper:  #FFFFFF;              /* 面板白（磨砂玻璃底） */
-  --panel:  rgba(255, 255, 255, .62);
-  --ink:    #2E3A55;              /* 深海军蓝。全站文字色，浅天幕上对比足够 */
-  --ink-70: rgba(46, 58, 85, .70);
-  --ink-45: rgba(46, 58, 85, .45);
-  --ink-20: rgba(46, 58, 85, .20);
-  --ink-10: rgba(46, 58, 85, .10);
+  --paper: #F2F0E9;
+  --paper-deep: #E8E6DE;
+  --surface: #FAF9F5;
+  --ink: #111516;
+  --ink-soft: #343B3D;
+  --muted: #566063;
+  --line: rgba(17, 21, 22, .17);
+  --line-strong: rgba(17, 21, 22, .42);
+  --accent: #0BBFAE;
+  --accent-dark: #046B64;
+  --accent-pale: #C9F5EE;
+  --night: #101617;
+  --night-soft: #172022;
+  --night-fg: #F2F0E9;
+  --night-muted: #C4CCCA;
+  --night-line: rgba(242, 240, 233, .18);
 
-  /* --- 夏日强调色（糖果系） --- */
-  --spec-a: #4E9FF1;              /* 晴空蓝 */
-  --spec-b: #66D2B9;              /* 薄荷绿 */
-  --spec-c: #FFD77A;              /* 柠檬黄 */
-  --spec-d: #F96FA0;              /* 草莓粉 */
-  --spec-e: #A98FE8;              /* 香芋紫 */
-  --spec-f: #FFB88F;              /* 蜜桃橙 */
+  --ff-display: "SC Display", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ff-body: "Plex", "Plex SC", "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --ff-mono: "Plex Mono", "Plex SC", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* --- 天空（由 body[data-tone] 切换） --- */
-  --sky-top:    #8FCDF5;          /* 头顶天蓝 */
-  --sky-bottom: #F9EAD9;          /* 地平线奶桃 */
-  --sun:        #FFF2C4;          /* 太阳光 */
-  --cloud:      #FFFFFF;          /* 云朵 */
+  --step--1: clamp(.76rem, .72rem + .16vw, .86rem);
+  --step-0: clamp(.98rem, .94rem + .2vw, 1.1rem);
+  --step-1: clamp(1.14rem, 1.04rem + .48vw, 1.42rem);
+  --step-2: clamp(1.45rem, 1.24rem + 1vw, 2rem);
+  --step-3: clamp(2rem, 1.56rem + 2vw, 3.2rem);
+  --step-4: clamp(3rem, 2.15rem + 4.1vw, 5.8rem);
 
-  /* --- 每幕文本色：面板内一律深海军蓝，天空上大字也是同色 --- */
-  --field: var(--sky-top);
-  --fg:    var(--ink);
-  --fg-70: var(--ink-70);
-  --fg-45: var(--ink-45);
-  --fg-20: var(--ink-20);
-  --fg-10: var(--ink-10);
-  --rule:  rgba(255, 255, 255, .85);
+  --gutter: clamp(1.25rem, 3.4vw, 3.4rem);
+  --shell: 1240px;
+  --section-space: clamp(5.5rem, 11vw, 10rem);
+  --radius-sm: .45rem;
+  --radius-md: 1rem;
 
-  /* --- 排版比例 --- */
-  --f-display: clamp(3.2rem, 10.4vw, 12.5rem);
-  --f-display-s: clamp(2.2rem, 6vw, 6.4rem);
-  --f-latin:   clamp(1.6rem, 5.2vw, 6rem);
-  --f-h2:      clamp(1.5rem, 2.6vw, 2.6rem);
-  --f-h3:      clamp(1.05rem, 1.35vw, 1.4rem);
-  --f-body:    clamp(.95rem, 1.02vw, 1.125rem);
-  --f-small:   clamp(.78rem, .82vw, .875rem);
-  --f-micro:   clamp(.66rem, .7vw, .75rem);
-
-  /* --- 栅格 --- */
-  --gutter: clamp(1.1rem, 3.2vw, 3.5rem);
-  --cols: 12;
-  --hair: 1px;
-  --rail-reserve: 0px;
-
-  /* --- 圆角与阴影（夏日软糖） --- */
-  --r-l: 26px;
-  --r-m: 18px;
-  --r-s: 12px;
-  --r-pill: 999px;
-  --shadow-soft: 0 18px 50px rgba(96, 132, 190, .18), 0 4px 14px rgba(96, 132, 190, .10);
-  --shadow-lift: 0 26px 70px rgba(96, 132, 190, .24), 0 8px 20px rgba(96, 132, 190, .12);
-
-  /* --- 动效 --- */
-  --e-out: cubic-bezier(.16, 1, .3, 1);
-  --e-in-out: cubic-bezier(.76, 0, .24, 1);
-  --t-fast: .22s;
-  --t-med: .5s;
-  --t-slow: .9s;
-}
-
-/* 幕次天空：切 tone 只换四组天空变量，其余全部继承 */
-body[data-tone="paper"] {
-  --sky-top: #8FCDF5;  --sky-bottom: #F9EAD9;  --sun: #FFF2C4;  --cloud: #FFFFFF;
-}
-body[data-tone="blue"] {
-  --sky-top: #F6C9E2;  --sky-bottom: #F3E6FA;  --sun: #FFD9EC;  --cloud: #FFF9FD;
-}
-body[data-tone="amber"] {
-  --sky-top: #A9E3DC;  --sky-bottom: #FFF3C9;  --sun: #FFF4C9;  --cloud: #FFFFFF;
-}
-body[data-tone="magenta"] {
-  --sky-top: #B9A7EF;  --sky-bottom: #F9D9E8;  --sun: #FFE3F0;  --cloud: #FFFBFF;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.76, 0, .24, 1);
+  --fast: 180ms;
+  --medium: 480ms;
+  --slow: 850ms;
 }
