@@ -19,28 +19,42 @@ import { createDrag } from "./ui/drag.js";
 import { clamp, damp, smootherstep, easeOutExpo, onceVisible, prefersReducedMotion, qaMode } from "./util/anim.js";
 
 /* --------------------------------------------------------------------------
-   每一幕的取景与色场
-   主体从不居中：它在左右两侧之间来回换位，和版面的出血方向对着来。
+   每一幕的取景与天空
+   第 1 幕主体正居中央（Hero 的主角）；之后在左右两侧来回换位，
+   给磨砂面板让出舞台，同时保持「玻璃一直在视野里」的连续性。
    -------------------------------------------------------------------------- */
 const VIEW = [
-  { pos: [ 1.24, -0.08,  0.00], scale: 1.00, latin: "EVIDENCE",  horizon: 0.28, grid: 0.20, accent: 0 },
-  { pos: [ 1.02,  0.28, -0.35], scale: 0.78, latin: "THREE LAYERS", horizon: 0.66, grid: 0.24, accent: 0 },
-  { pos: [-1.26,  0.04, -0.20], scale: 0.74, latin: "GATED",    horizon: 0.42, grid: 0.20, accent: 0 },
-  { pos: [ 1.32, -0.22, -0.45], scale: 0.60, latin: "AT SCALE", horizon: 0.22, grid: 0.18, accent: 1 },
-  { pos: [-1.00, -0.02,  0.10], scale: 0.94, latin: "JUDGED",   horizon: 0.54, grid: 0.16, accent: 0 },
-  { pos: [ 1.44,  0.32, -0.60], scale: 0.50, latin: "OPEN TO",  horizon: 0.16, grid: 0.20, accent: 0 },
+  { pos: [ 0.00, -0.02,  0.10], scale: 0.95 },
+  { pos: [ 1.40,  0.30, -0.30], scale: 0.62 },
+  { pos: [-1.45,  0.12, -0.25], scale: 0.62 },
+  { pos: [ 1.50, -0.28, -0.40], scale: 0.58 },
+  { pos: [-1.05, -0.05,  0.05], scale: 0.85 },
+  { pos: [ 1.50,  0.35, -0.55], scale: 0.55 },
 ];
 
-/* tone → 色场 / 结构体墨色 / 玻璃边缘色 */
+/* tone → 天空 / 玻璃环境光 / 边缘色
+   四片天：晨光蓝、黄昏粉、薄荷柠檬、薰衣草暮色。
+   skyTop/skyBottom 喂给背景 shader；sun/tintA/tintB 是阳光与柔光带；
+   envTop/envBottom 拉开刻面明度差，rim 是 Fresnel 边缘的薰衣草光。 */
 const TONE = {
-  // envTop / envBottom 拉开明度差，刻面之间才有体积；
-  // 旧值上下都偏亮，整颗玻璃塌成一团奶白。
-  paper:   { field: "#EFEBE4", inkA: "#12100E", inkB: "#2B1BFF", rim: "#2B1BFF", envTop: "#FFFDF7", envBottom: "#57534D" },
-  blue:    { field: "#2B1BFF", inkA: "#EFEBE4", inkB: "#FFC400", rim: "#FFC400", envTop: "#DAD6FF", envBottom: "#0E0866" },
-  amber:   { field: "#EFEBE4", inkA: "#12100E", inkB: "#FF2E63", rim: "#FFC400", envTop: "#FFF8E8", envBottom: "#5C5749" },
-  magenta: { field: "#FF2E63", inkA: "#12100E", inkB: "#2B1BFF", rim: "#2B1BFF", envTop: "#FFE3EA", envBottom: "#69122C" },
+  paper:   { field: "#8FCDF5", skyTop: "#8FCDF5", skyBottom: "#F9EAD9",
+             sun: "#FFF2C4", sunPos: [0.82, 0.16], tintA: "#FFD9E8", tintB: "#C4E8FF", tintAmt: 0.55, cloudAmt: 0.50,
+             rim: "#C3CBF5", envTop: "#FFFDF4", envBottom: "#A9B6E6" },
+  blue:    { field: "#F6C9E2", skyTop: "#F6C9E2", skyBottom: "#F3E6FA",
+             sun: "#FFE3F0", sunPos: [0.62, 0.30], tintA: "#FFC9E4", tintB: "#E4D3FF", tintAmt: 0.70, cloudAmt: 0.35,
+             rim: "#EFC9E4", envTop: "#FFF9FE", envBottom: "#C9A9E0" },
+  amber:   { field: "#A9E3DC", skyTop: "#A9E3DC", skyBottom: "#FFF3C9",
+             sun: "#FFF9C9", sunPos: [0.20, 0.24], tintA: "#C4F0E6", tintB: "#FFE9B8", tintAmt: 0.65, cloudAmt: 0.45,
+             rim: "#B5E6DC", envTop: "#FDFFFB", envBottom: "#9ED6CC" },
+  magenta: { field: "#B9A7EF", skyTop: "#B9A7EF", skyBottom: "#F9D9E8",
+             sun: "#FFE9F4", sunPos: [0.78, 0.18], tintA: "#E3D8FF", tintB: "#FFD9EC", tintAmt: 0.70, cloudAmt: 0.40,
+             rim: "#D8C8F7", envTop: "#FFFCFF", envBottom: "#B79FE6" },
 };
-const ACCENT = new THREE.Color("#FFC400");
+/* 玻璃内结构体的固定配色：草莓粉 → 晴空蓝 */
+const INK_IN = new THREE.Color("#F96FA0");
+const INK_OUT = new THREE.Color("#4E9FF1");
+/* 玻璃刻面棱线：极淡雾蓝 */
+const EDGE_IN = new THREE.Color("#52698C");
 
 const reduced = prefersReducedMotion();
 const QA = qaMode();
@@ -203,10 +217,12 @@ async function boot() {
   });
 
   /* --- 主循环 --- */
-  const fieldC = new THREE.Color();
-  const inkA = new THREE.Color(), inkB = new THREE.Color();
+  const skyTopC = new THREE.Color(), skyBotC = new THREE.Color();
+  const tintAC = new THREE.Color(), tintBC = new THREE.Color();
+  const sunC = new THREE.Color();
   const rimC = new THREE.Color(), envC = new THREE.Color(), envT = new THREE.Color();
   const tmpC = new THREE.Color();
+  const sunPos = new THREE.Vector2();
   const pos = new THREE.Vector3();
   let curPos = new THREE.Vector3(VIEW[0].pos[0], VIEW[0].pos[1], VIEW[0].pos[2]);
   let curScale = VIEW[0].scale;
@@ -256,14 +272,21 @@ async function boot() {
     // 形变：0 流体 → 1 有向图 → 2 分子
     const morph = C.acts[bView.i].morph + (C.acts[bView.j].morph - C.acts[bView.i].morph) * bView.w;
 
-    // 色场 / 墨色 / 玻璃边缘
+    // 天空 / 玻璃环境光 / 边缘色
     const TA = TONE[C.acts[bTone.i].tone], TB = TONE[C.acts[bTone.j].tone];
-    fieldC.set(TA.field).lerp(tmpC.set(TB.field), bTone.w);
-    inkA.set(TA.inkA).lerp(tmpC.set(TB.inkA), bTone.w);
-    inkB.set(TA.inkB).lerp(tmpC.set(TB.inkB), bTone.w);
-    rimC.set(TA.rim).lerp(tmpC.set(TB.rim), bTone.w);
-    envC.set(TA.envBottom).lerp(tmpC.set(TB.envBottom), bTone.w);
-    envT.set(TA.envTop).lerp(tmpC.set(TB.envTop), bTone.w);
+    const tw = bTone.w;
+    skyTopC.set(TA.skyTop).lerp(tmpC.set(TB.skyTop), tw);
+    skyBotC.set(TA.skyBottom).lerp(tmpC.set(TB.skyBottom), tw);
+    sunC.set(TA.sun).lerp(tmpC.set(TB.sun), tw);
+    tintAC.set(TA.tintA).lerp(tmpC.set(TB.tintA), tw);
+    tintBC.set(TA.tintB).lerp(tmpC.set(TB.tintB), tw);
+    rimC.set(TA.rim).lerp(tmpC.set(TB.rim), tw);
+    envC.set(TA.envBottom).lerp(tmpC.set(TB.envBottom), tw);
+    envT.set(TA.envTop).lerp(tmpC.set(TB.envTop), tw);
+    sunPos.set(
+      TA.sunPos[0] + (TB.sunPos[0] - TA.sunPos[0]) * tw,
+      TA.sunPos[1] + (TB.sunPos[1] - TA.sunPos[1]) * tw,
+    );
 
     /* --- 滚动速度 → 转场强度 --- */
     const sy = window.scrollY;
@@ -278,12 +301,12 @@ async function boot() {
 
     structure.uniforms.uMorph.value = morph;
     structure.uniforms.uTime.value = time;
-    structure.uniforms.uInkA.value.copy(inkA);
-    structure.uniforms.uInkB.value.copy(inkB);
+    structure.uniforms.uInkA.value.copy(INK_IN);
+    structure.uniforms.uInkB.value.copy(INK_OUT);
     structure.uniforms.uTurb.value = reduced ? 0 : 1;
     // 流体态是 2400 条流线，线密度天然比骨架高得多；恒定不透明度会让
-    // Hero 糊成一团黑。按 morph 提升：流体 0.52 → 骨架/分子 0.92。
-    structure.uniforms.uOpacity.value = 0.70 + 0.22 * clamp(morph, 0, 1);
+    // Hero 糊成一团。按 morph 提升：流体 0.55 → 骨架/分子 0.95。
+    structure.uniforms.uOpacity.value = 0.75 + 0.20 * clamp(morph, 0, 1);
 
     glass.shared.uMorph.value = morph;
     glass.shared.uTime.value = time;
@@ -291,26 +314,28 @@ async function boot() {
     glass.uniforms.uRim.value.copy(rimC);
     glass.uniforms.uEnvBottom.value.copy(envC);
     glass.uniforms.uEnvTop.value.copy(envT);
-    glass.uniforms.uEdge.value.copy(inkA);   // 刻面棱线 = 该幕的墨色，与页面细线同源
+    glass.uniforms.uEdge.value.copy(EDGE_IN);   // 刻面棱线：极淡雾蓝，与天空同族
     glass.uniforms.uPointer.value.set(cursor.uv.x, cursor.uv.y);
     glass.uniforms.uLens.value = cursor.enabled ? 0.16 : 0;
 
     const bg = scene.bg.uniforms;
-    bg.uFieldA.value.copy(fieldC);
-    bg.uFieldB.value.copy(fieldC);
-    bg.uFieldMix.value = 0;
-    bg.uInk.value.set(C.acts[bTone.i].tone === "blue" ? "#EFEBE4" : "#12100E");
-    bg.uAccent.value.copy(ACCENT);
-    bg.uAccentAmt.value = (A.accent + (B.accent - A.accent) * bView.w) * (aspect < 0.95 ? 0.0 : 1.0);
-    bg.uGridAlpha.value = A.grid + (B.grid - A.grid) * bView.w;
-    bg.uHorizon.value = A.horizon + (B.horizon - A.horizon) * bView.w;
+    bg.uSkyTopA.value.copy(skyTopC);
+    bg.uSkyBottomA.value.copy(skyBotC);
+    bg.uSkyTopB.value.copy(skyTopC);
+    bg.uSkyBottomB.value.copy(skyBotC);
+    bg.uMix.value = 0;
+    bg.uSun.value.copy(sunC);
+    bg.uSunPos.value.copy(sunPos);
+    bg.uSunAmt.value = 1;
+    bg.uTintA.value.copy(tintAC);
+    bg.uTintB.value.copy(tintBC);
+    bg.uTintAmt.value = TA.tintAmt + (TB.tintAmt - TA.tintAmt) * tw;
+    bg.uCloudAmt.value = TA.cloudAmt + (TB.cloudAmt - TA.cloudAmt) * tw;
+    bg.uTime.value = time;
     bg.uShadowAmt.value = damp(bg.uShadowAmt.value, shadowTarget, 0.2, dt);
     scene.transition.uniforms.uAmt.value = warp;
     scene.transition.uniforms.uDir.value = scrollVel >= 0 ? 1 : -1;
     scene.transition.uniforms.uSeed.value = QA ? 3 : Math.floor(sy / 240);
-
-    scene.setWatermark(bView.w > 0.5 ? B.latin : A.latin);
-    scene.bg.uniforms.uWmMix.value = damp(scene.bg.uniforms.uWmMix.value, 1, 0.12, dt);
 
     /* --- 主体位姿：玻璃与结构体共用同一套 TRS --- */
     drag.update(dt);
@@ -337,10 +362,9 @@ async function boot() {
     }
   }
 
-  // Bodoni 装好之后再烤一次水印，避免首帧用回退字形
+  // 字体就位后重新测量，避免首帧布局抖动
   const fontsReady = document.fonts?.ready ?? Promise.resolve();
   Promise.race([fontsReady, new Promise((r) => setTimeout(r, 1500))]).then(() => {
-    scene.resetWatermarks();
     measure();
     cursor.refresh();
   });

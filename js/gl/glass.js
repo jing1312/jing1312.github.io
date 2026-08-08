@@ -208,31 +208,30 @@ export function buildGlass({ detail = 5, samples = 9 } = {}) {
     uDepthTex:   { value: null },
     uResolution: { value: new THREE.Vector2(1, 1) },
     uIor:        { value: 1.46 },
-    // 色散拉到肉眼可辨：不夸张就等于没做，看上去只剩一团雾
-    uDispersion: { value: 0.085 },
-    // 折射位移用**归一化厚度**驱动。旧版用世界厚度，位移能到 1.8 个 uv，
+    // 色散调到「能看到细边」而不是「满屏彩雾」——夏日光要克制
+    uDispersion: { value: 0.055 },
+    // 折射位移用**归一化厚度**驱动。旧版用世界厚度，位移能穿透到 1.8 个 uv，
     // 全被 clamp 到贴图边缘 → 屏幕上就是那些奶白横向拉丝。
-    // 色散只有背景有对比度时才看得见。页面自己的栅格线就是最诚实的被折射物：
-    // 折射强度必须大到能把栅格明显掰弯，逐波长取样才会在弯折处挂出彩色边。
-    uRefract:    { value: 0.26 },
-    // Beer-Lambert：红端吸收最强 → 厚处沉成青蓝，薄处近乎无色。晶体的体积感
-    // 主要来自这条曲线，而不是描边。
-    uAbsorb:     { value: new THREE.Color(0.21, 0.115, 0.045) },
-    uThick:      { value: 1.0 },
-    uFresnel:    { value: 2.9 },
-    uRim:        { value: new THREE.Color("#2B1BFF") },
-    uEnvTop:     { value: new THREE.Color("#FFFDF7") },
-    uEnvBottom:  { value: new THREE.Color("#5B5856") },
-    uEnvKey:     { value: new THREE.Color("#FFF4DE") },
-    uEdge:       { value: new THREE.Color("#12100E") },  // 刻面棱线 / 硬轮廓
-    uEdgeAmt:    { value: 0.34 },
-    uCoreTex:    { value: emptyCore() },   // 玻璃内部的结构体（带 alpha）
-    uCoreRefract:{ value: 0.045 },         // 内含物只过一次界面，位移远小于背景
-    // 浅底（纸 #EFEBE4 ≈ 0.93）上靠"压暗"建立体积，不靠"提亮"：
-    // 上界一旦 >1.08 就会削顶成纯白，刻面之间的明度差反而消失。
-    uFacetLo:    { value: 0.74 },          // 每面明度调制下界
-    uFacetHi:    { value: 1.06 },          // 上界
-    uFacetJit:   { value: 0.022 },                        // 每面折射率微差
+    // 色散只有背景有对比度时才看得见。天空的光带与云边就是最诚实的被折射物：
+    // 折射强度够让光带、云边被明显掰弯，逐波长取样才会在弯折处挂出柔和彩边。
+    uRefract:    { value: 0.24 },
+    // Beer-Lambert：蓝端吸收略强 → 厚处沉成淡淡薰衣草色，薄处近乎晶莹。
+    // 体积感主要来自这条曲线 + 面间明度差，而不是描边。
+    uAbsorb:     { value: new THREE.Color(0.10, 0.10, 0.20) },
+    uThick:      { value: 0.7 },
+    uFresnel:    { value: 2.2 },
+    uRim:        { value: new THREE.Color("#C3CBF5") },
+    uEnvTop:     { value: new THREE.Color("#FFFDF4") },
+    uEnvBottom:  { value: new THREE.Color("#A9B6E6") },
+    uEnvKey:     { value: new THREE.Color("#FFE9C4") },
+    uEdge:       { value: new THREE.Color("#52698C") },  // 刻面棱线：极淡的雾蓝
+    uEdgeAmt:    { value: 0.12 },
+    uCoreTex:    { value: emptyCore() },   // 内部的结构体（带 alpha）
+    uCoreRefract:{ value: 0.050 },         // 内含物只经一次界面，位移远小于背景
+    // 玻璃里外都很亮——需要丰盈柔光，刻面色散不够强
+    uFacetLo:    { value: 0.86 },          // 每面明度调制下界
+    uFacetHi:    { value: 1.10 },          // 上界
+    uFacetJit:   { value: 0.015 },                        // 每面折射率微差
     uPointer:    { value: new THREE.Vector2(9, 9) },      // 屏外 = 无扰动
     uLens:       { value: 0.0 },
     uOpacity:    { value: 1.0 },
@@ -371,19 +370,19 @@ export function buildGlass({ detail = 5, samples = 9 } = {}) {
         // 每面常量明度调制：切割水晶靠的是面与面之间的曝光差，不是描边
         float facetLum = dot(N, normalize(vec3(-0.55, 0.78, 0.32))) * 0.5 + 0.5;
         col *= mix(uFacetLo, uFacetHi, facetLum);
-        // 边缘色散提示：Fresnel 边上压一点高折射端的蓝
-        col += uRim * pow(F, 1.5) * 0.40;
-        // 高光
+        // 边缘色散提示：薰衣草柔光，不抢戏
+        col += uRim * pow(F, 1.5) * 0.22;
+        // 高光：太阳在玻璃上的一颗星
         float spec = pow(max(dot(reflect(I, N), normalize(vec3(-0.55, 0.78, 0.32))), 0.0), 64.0);
-        col += vec3(spec) * 0.42;
+        col += vec3(spec) * 0.55;
 
         // 刻面棱线：重心坐标最小分量 → 三角形边界。
         // 刻意不用 fwidth（GLSL ES 1.00 导数扩展），线宽按重心空间给固定比例。
         // 棱线只在边缘一圈加重：正面几乎不描边，避免变成一个测地线线框球。
         float bmin = min(min(vBary.x, vBary.y), vBary.z);
         float wire = 1.0 - smoothstep(0.010, 0.040, bmin);
-        float outline = smoothstep(0.34, 0.99, F);
-        col = mix(col, uEdge, clamp(wire * uEdgeAmt * (0.10 + 0.90 * outline) + outline * uEdgeAmt * 0.55, 0.0, 0.82));
+        float outline = smoothstep(0.42, 1.00, F);
+        col = mix(col, uEdge, clamp(wire * uEdgeAmt * (0.08 + 0.55 * outline) + outline * uEdgeAmt * 0.30, 0.0, 0.55));
 
         gl_FragColor = vec4(col, uOpacity);
       }

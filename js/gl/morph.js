@@ -259,8 +259,8 @@ export function buildStructure(moleculeJson) {
   const uniforms = {
     uMorph:   { value: 0 },
     uTime:    { value: 0 },
-    uInkA:    { value: new THREE.Color("#12100E") },
-    uInkB:    { value: new THREE.Color("#2B1BFF") },
+    uInkA:    { value: new THREE.Color("#F96FA0") },
+    uInkB:    { value: new THREE.Color("#4E9FF1") },
     uOpacity: { value: 0.9 },
     uTurb:    { value: 1.0 },   // 流体扰动强度（Act 2 加剧）
   };

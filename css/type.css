@@ -1,8 +1,8 @@
 /* ==========================================================================
    type.css — 自托管字体与排版类
-   刻意失配：极高对比的拉丁 Didone（Bodoni Moda 900）× 极重的中文黑体
-   （Noto Sans SC 900）。这种不匹配就是防模板感的来源。
-   Bodoni 的细笔画在小字号会消失，因此只用于 ≥ 展示级字号。
+   字体三件套：拉丁 Didone（Bodoni Moda 900）× 中文黑体（Noto Sans SC 900）
+   × IBM Plex（正文/等宽）。大标题深海军蓝压浅天幕，是「梦幻清新」里
+   唯一的重色重语气——颜色轻，字不能飘。
    全部 OFL 授权，fonttools 按实际用到的字形子集化。
    ========================================================================== */
 
@@ -61,13 +61,11 @@
   --ff-mono: "Plex Mono", "Plex SC", "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
-/* --- 巨型中文标题：贴左满出血，绝不居中 --- */
+/* --- 大型中文标题：深海军蓝，浅天上唯一的重色 --- */
 .d-zh {
   font-family: var(--ff-display-zh);
   font-weight: 900;
   font-size: var(--f-display);
-  /* Noto Sans SC Black 的字面几乎撑满 em 框：实测 .93 两行仍然相咬，
-     1.02 是「紧到有压迫感」与「不打架」的分界。 */
   line-height: 1.02;
   letter-spacing: -.045em;
   color: var(--fg);
@@ -119,7 +117,7 @@
   margin: 0;
   text-wrap: pretty;
 }
-.p--60 { color: var(--fg-60); }
+.p--60 { color: var(--fg-70); }
 .p--s  { font-size: var(--f-small); line-height: 1.6; }
 
 /* --- 等宽：标签、数据、仓库名 --- */
@@ -136,7 +134,7 @@
   font-size: var(--f-micro);
   letter-spacing: .16em;
   text-transform: uppercase;
-  color: var(--fg-60);
+  color: var(--fg-70);
 }
 .m--num {
   font-weight: 600;
@@ -144,14 +142,15 @@
   font-feature-settings: "tnum" 1;
 }
 
-/* --- 巨型计数数字 --- */
+/* --- 巨型计数数字：夏日气球字 --- */
 .count {
   font-family: var(--ff-display-la);
   font-weight: 900;
-  font-size: clamp(3.4rem, 8.4vw, 9rem);
-  line-height: .84;
+  font-size: clamp(3rem, 7vw, 7.5rem);
+  line-height: .9;
   letter-spacing: -.02em;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
   display: block;
+  text-align: center;
 }

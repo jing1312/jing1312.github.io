@@ -53,7 +53,7 @@ index.html            六个空 <section> + noscript 兜底。内容全部由 JS
 css/
   tokens.css          色板 / 字号 / 间距 / 缓动，唯一的设计变量源
   type.css            字体族与排印
-  layout.css          栅格与六幕版式（含 640 / 1000 / 1001px 断点）
+  layout.css          磨砂面板与六幕版式（含 640 / 1000 / 1001px 断点）
   ui.css              光标、章节轨、无 WebGL 兜底
 js/
   content.js          ★ 全部文案与数据。改站基本只改这一个文件
@@ -64,7 +64,7 @@ js/
   gl/scene.js         六 pass 渲染管线
   gl/glass.js         刻面玻璃：色散折射 / Beer-Lambert 吸收 / 程序化 studio 环境
   gl/morph.js         三态结构体：流体 → Agent 执行图 → 青蒿素分子
-  gl/transition.js    幕间着色器转场（warp + 色差）
+  gl/transition.js    幕间着色器转场（柔光带 + 轻色差）
   gl/quality.js       自适应降质三档
   util/anim.js        缓动、阻尼、reduced-motion / QA 开关
 vendor/three/         three@0.180.0 ESM 构建（703 KB 原始 / 175 KB gzip）
@@ -105,19 +105,21 @@ Plex Mono）。展示中文用 Noto Sans SC Black——IBM Plex Sans SC 最重�
 
 色板有**两处**，必须同步改：
 
-1. `css/tokens.css` — DOM 侧（`--paper` `--ink` `--spec-a…d`）
-2. `js/main.js` 顶部的 `TONE` 表 — WebGL 侧（每幕的 `field` / `inkA` / `inkB` /
-   `rim` / `envTop` / `envBottom`）
+1. `css/tokens.css` — DOM 侧（`--paper` `--ink` `--spec-a…f` `--sky-*`）
+2. `js/main.js` 顶部的 `TONE` 表 — WebGL 侧（每幕的 `skyTop` / `skyBottom` / `sun` /
+   `sunPos` / `tintA` / `tintB` / `rim` / `envTop` / `envBottom`）
 
-改完请重算对比度。当前实测（WCAG AA 正文 4.5:1）：
+背景天空渐变挂在 WebGL 层（`js/gl/scene.js` 的天空 shader），CSS 的 `--sky-*`
+只用于兜底与 meta，两者在 `TONE` 表里共用同一组值。
+
+改完请重算对比度。当前实测（WCAG AA 正文 4.5:1，正文全站深海军蓝）：
 
 | 组合 | 对比度 | |
 | --- | --- | --- |
-| 墨色 on 纸色 | 15.98 | PASS |
-| 纸色 on 电光蓝 `#2B1BFF` | 6.54 | PASS ← 第 2 幕用乳白字 |
-| 墨色 on 品红 `#FF2E63` | 5.26 | PASS ← 第 5 幕用近黑字 |
-| 纸色 on 品红 | 3.04 | 只够大字，故未采用 |
-| 墨色 on 琥珀 `#FFC400` | 11.89 | PASS |
+| 墨色 `#2E3A55` on 面板白 | 11.07 | PASS |
+| 墨色 on 柠檬奶油 `#FFE0CC→` | ≥ 8.0 | PASS ← 第 3/4 幕的亲切卡 |
+| 墨色 on 黄昏粉 `#F6C9E2` | 7.58 | PASS ← 第 2 幕天幕 |
+| 白 on 墨蓝（CTA 药丸） | 11.07 | PASS |
 
 ---
 
@@ -127,7 +129,7 @@ Plex Mono）。展示中文用 Noto Sans SC Black——IBM Plex Sans SC 最重�
 
 | 情况 | 行为 |
 | --- | --- |
-| 没有 WebGL2 / context lost | `body.no-webgl`，canvas 隐藏，换成 CSS 硬线网格 + 内联的正二十面体线框 SVG。六幕文字 100% 可读，色调仍随滚动切换 |
+| 没有 WebGL2 / context lost | `body.no-webgl`，canvas 隐藏，换成 CSS 天空渐变 + 太阳 / 柔云 + 柠檬色线框 SVG 宝石。六幕文字 100% 可读，天空色调仍随滚动切换 |
 | `prefers-reduced-motion: reduce` | 关转场、关相机漂移、关湍流、形变不插值、计数器直接显示终值、锚点跳转用 `auto` |
 | 掉帧 | `gl/quality.js` 自动降档：High→Mid 中位 45fps 持续 2s，Mid→Low 25fps 持续 2s；回升需 55fps 持续 5s 且整场只回升一次。触屏 / 窄屏 / ≤4 核起步就是 Mid |
 
@@ -170,9 +172,11 @@ GitHub Pages 压缩。当前：字体 153 KB（woff2 本身已压缩），首屏
 - **流体态是被球壳封闭的 ABC 流积分流线**：速度场写成 `v = ∇×(g(r)·P(Kx))`，
   散度恒为零；`g(R)=0` 保证壳面上速度严格切向，流线数学上出不去，不需要任何夹取。
   `tools/check_fluid.py` 会数值验证这两条。
-- **不做薄膜干涉 / 虹彩**。色散靠把折射强度提到能明显掰弯页面自身的栅格线，
-  让逐波长采样在弯折处自然挂出彩边。理由写在 `svg-optimization-skill` 里：
+- **不做薄膜干涉 / 虹彩**。色散靠把折射强度提到能明显掰弯天空里的光带与云边，
+  让逐波长采样在弯折处自然挂出柔和的彩色细边。理由写在 `svg-optimization-skill` 里：
   「高级感来自控制，而不是增加。」
+- **页面本身的磨砂白面板是 CSS 背景 + backdrop-filter**，不是贴在半透明玻璃上；
+  玻璃仍然是唯一的一层「真折射」，面板只是它脚下轻盈的磨砂舞台。
 - **分子不是手摆的**，是 PubChem CID 68827 的三维构象，质心归一化后缩放到单位半径。
 
 ---

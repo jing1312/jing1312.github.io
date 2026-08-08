@@ -1,17 +1,17 @@
 /* ==========================================================================
-   scene.js — 渲染编排
+   scene.js — 渲染编排 · 梦幻夏日版
    六个 pass：
-     1a 背景 ortho quad   色场 + 1px 硬线栅格 + 巨型 Bodoni 水印 + 接触阴影 → fboA
-     1b 三态结构体        透视相机，透明底                             → fboCore
-     2  transition        warp + 色度分离                              fboA → fboB
+     1a 背景 ortho quad   天空渐变 + 太阳 + 柔云 + 光带 → fboA
+     1b 三态结构体        透视相机，透明底                    → fboCore
+     2  transition        柔光拖影（轻色差）    fboA → fboB
      3  blit              fboB → 屏幕
-     4  玻璃背面深度      归一化视距写进 R 通道                        → fboDepth
-     5  玻璃正面          强折射取样 fboB + 弱折射取样 fboCore          → 屏幕
+     4  玻璃背面深度      归一化视距写进 R 通道               → fboDepth
+     5  玻璃正面          强折射取样 fboB + 弱折射取样 fboCore → 屏幕
 
    结构体不直接上屏：它整个在玻璃壳内部，只应该透过玻璃被看见。
 
-   硬线栅格只画在 WebGL 层。这样玻璃能把它折弯——那才是玻璃存在的理由。
-   无 WebGL 时才由 css/ui.css 用 CSS 渐变补一层网格。两边都画会毁掉幻觉。
+   背景必须给玻璃提供「可折射的内容」——天空渐变、太阳、柔云、彩色光带，
+   玻璃在每一块色块/云边上勾出彩色细边，这就是梦幻夏日里的真实折射。
    ========================================================================== */
 
 import * as THREE from "three";
@@ -26,61 +26,27 @@ const FULLSCREEN_VS = /* glsl */ `
 `;
 
 /* --------------------------------------------------------------------------
-   巨型拉丁水印：canvas2d → 纹理（Bodoni 已在页面里自托管）
-   -------------------------------------------------------------------------- */
-function makeWordTexture(word) {
-  const W = 2048, H = 512;
-  const cv = document.createElement("canvas");
-  cv.width = W; cv.height = H;
-  const g = cv.getContext("2d");
-  g.clearRect(0, 0, W, H);
-  g.fillStyle = "#ffffff";
-  g.textAlign = "left";
-  g.textBaseline = "alphabetic";
-
-  // 先按一个基准字号量宽，再缩放到刚好铺满画布宽度
-  const base = 360;
-  g.font = `900 ${base}px "Bodoni Display", "Bodoni Moda", Didot, "Times New Roman", serif`;
-  const w0 = Math.max(g.measureText(word).width, 1);
-  const size = Math.min(base * ((W - 8) / w0), H * 1.02);
-  g.font = `900 ${size}px "Bodoni Display", "Bodoni Moda", Didot, "Times New Roman", serif`;
-  const w1 = g.measureText(word).width;
-  g.fillText(word, (W - w1) / 2, H * 0.86);
-
-  const tex = new THREE.CanvasTexture(cv);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.generateMipmaps = false;
-  return tex;
-}
-
-/* --------------------------------------------------------------------------
-   背景材质
+   背景材质：夏日天空
    -------------------------------------------------------------------------- */
 function makeBackground() {
   const uniforms = {
-    uRes:       { value: new THREE.Vector2(1, 1) },
-    uFieldA:    { value: new THREE.Color("#EFEBE4") },
-    uFieldB:    { value: new THREE.Color("#EFEBE4") },
-    uFieldMix:  { value: 0 },
-    uInk:       { value: new THREE.Color("#12100E") },
-    uAccent:    { value: new THREE.Color("#FFC400") },
-    uAccentAmt: { value: 0 },
-    uAccentX:   { value: 0.68 },     // 硬边色块的左界（uv）
-    uGridPitch: { value: 120 },      // 相邻竖线像素间距
-    uGridOrigin:{ value: 40 },       // 版心左界（= .act 的 padding-left）
-    uGridEnd:   { value: 1000 },     // 版心右界（让出章节轨走廊）
-    uGridAlpha: { value: 0.13 },
-    uHorizon:   { value: 0.5 },      // 水平基准线（uv y），<0 关闭
-    uWmA:       { value: null },
-    uWmB:       { value: null },
-    uWmMix:     { value: 0 },
-    uWmRect:    { value: new THREE.Vector4(-0.03, 0.03, 1.06, 0.40) },
-    uWmAlpha:   { value: 0.085 },
-    uShadow:    { value: new THREE.Vector3(0.7, 0.35, 0.34) }, // uv x, uv y, 半径
-    uShadowAmt: { value: 0.5 },
-    uGrain:     { value: 0.014 },
+    uRes:        { value: new THREE.Vector2(1, 1) },
+    uSkyTopA:    { value: new THREE.Color("#8FCDF5") },
+    uSkyBottomA: { value: new THREE.Color("#F9EAD9") },
+    uSkyTopB:    { value: new THREE.Color("#8FCDF5") },
+    uSkyBottomB: { value: new THREE.Color("#F9EAD9") },
+    uMix:        { value: 0 },
+    uSun:        { value: new THREE.Color("#FFF2C4") },
+    uSunPos:     { value: new THREE.Vector2(0.78, 0.20) },
+    uSunAmt:     { value: 1 },
+    uTintA:      { value: new THREE.Color("#FFD9E8") },
+    uTintB:      { value: new THREE.Color("#C4E8FF") },
+    uTintAmt:    { value: 0.5 },
+    uCloud:      { value: new THREE.Color("#FFFFFF") },
+    uCloudAmt:   { value: 0.55 },
+    uTime:       { value: 0 },
+    uShadow:     { value: new THREE.Vector3(0.7, 0.36, 0.34) }, // uv x, uv y, 半径
+    uShadowAmt:  { value: 0.45 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -92,64 +58,69 @@ function makeBackground() {
       precision highp float;
       varying vec2 vUv;
       uniform vec2  uRes;
-      uniform vec3  uFieldA, uFieldB, uInk, uAccent;
-      uniform float uFieldMix, uAccentAmt, uAccentX;
-      uniform float uGridPitch, uGridOrigin, uGridEnd, uGridAlpha, uHorizon;
-      uniform sampler2D uWmA, uWmB;
-      uniform float uWmMix, uWmAlpha;
-      uniform vec4  uWmRect;
+      uniform vec2  uSunPos;
+      uniform vec3  uSkyTopA, uSkyBottomA, uSkyTopB, uSkyBottomB;
+      uniform vec3  uSun, uTintA, uTintB, uCloud;
+      uniform float uMix, uSunAmt, uTintAmt, uCloudAmt, uTime;
       uniform vec3  uShadow;
-      uniform float uShadowAmt, uGrain;
+      uniform float uShadowAmt;
 
-      float hash12(vec2 p) {
+      float hash21(vec2 p) {
         vec3 p3 = fract(vec3(p.xyx) * 0.1031);
         p3 += dot(p3, p3.yzx + 33.33);
         return fract((p3.x + p3.y) * p3.z);
       }
+      float vnoise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        float a = hash21(i), b = hash21(i + vec2(1.0, 0.0));
+        float c = hash21(i + vec2(0.0, 1.0)), d = hash21(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
 
       void main() {
         vec2 fc = vUv * uRes;
-        vec3 field = mix(uFieldA, uFieldB, uFieldMix);
+        float aspect = uRes.x / max(uRes.y, 1.0);
 
-        // --- 硬边强调色块（Act 4 的琥珀立柱）：不是渐变，是切割 ---
-        float blockEdge = step(uAccentX, vUv.x);
-        field = mix(field, uAccent, blockEdge * uAccentAmt);
+        // --- 天空：头顶天蓝，地平线奶桃（uv.y=1 是顶、=0 是底） ---
+        vec3 top = mix(uSkyTopA, uSkyTopB, uMix);
+        vec3 bot = mix(uSkyBottomA, uSkyBottomB, uMix);
+        float h = smoothstep(0.0, 1.0, vUv.y);
+        vec3 col = mix(bot, top, h * h * (3.0 - 2.0 * h));
 
-        vec3 col = field;
+        // --- 太阳：暖光晕 + 小圆盘（qa 模式下 uTime 冻结，位置固定） ---
+        vec2 sd = (vUv - uSunPos) * vec2(aspect, 1.0);
+        float d = length(sd);
+        float glow = exp(-d * d * 30.0);
+        float disk = smoothstep(0.038, 0.026, d);
+        col = mix(col, uSun, clamp(disk * 0.95 + glow * 0.30 * uSunAmt, 0.0, 0.95));
 
-        // --- 接触阴影：给漂浮的主体压出重量 ---
-        vec2 sp = (vUv - uShadow.xy) * vec2(1.0, 2.35);
-        sp.x *= uRes.x / max(uRes.y, 1.0);
-        float sd = length(sp) / max(uShadow.z, 1e-3);
-        float shade = exp(-sd * sd * 1.7) * uShadowAmt;
-        col = mix(col, col * 0.72, clamp(shade, 0.0, 1.0));
+        // --- 两道柔光色带：给玻璃提供被折射的内容 ---
+        vec2 bx = vec2(
+          (vUv.x * aspect - 0.30) * 3.4,
+          (vUv.x * aspect - 0.62) * 2.9
+        );
+        float b1 = exp(-bx.x * bx.x / 1.0);
+        float b2 = exp(-bx.y * bx.y / 1.0);
+        col = mix(col, uTintA, b1 * uTintAmt * 0.6);
+        col = mix(col, uTintB, b2 * uTintAmt * 0.4);
 
-        // --- 巨型拉丁水印 ---
-        vec2 wuv = (vUv - uWmRect.xy) / uWmRect.zw;
-        if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0) {
-          float a = mix(texture2D(uWmA, wuv).a, texture2D(uWmB, wuv).a, uWmMix);
-          col = mix(col, uInk, a * uWmAlpha);
-        }
+        // --- 柔云：双层值噪声，缓慢漂移 ---
+        vec2 cq = vUv * vec2(aspect, 1.0) * 2.2;
+        float n1 = vnoise2(cq * 2.6 + vec2(uTime * 0.010, -uTime * 0.006)) * 0.55;
+        float n2 = vnoise2(cq * 5.2 - vec2(uTime * 0.016, uTime * 0.008)) * 0.45;
+        float cloud = smoothstep(0.30, 0.72, n1 + n2);
+        col = mix(col, uCloud, clamp(cloud * uCloudAmt, 0.0, 0.75));
 
-        // --- 1px 硬线栅格：周期竖线 + 两侧边界线 ---
-        float t = (fc.x - uGridOrigin) / max(uGridPitch, 1.0);
-        float ft = fract(t);
-        float dPeriodic = min(ft, 1.0 - ft) * uGridPitch;
-        float dEdge = min(abs(fc.x - uGridOrigin), abs(fc.x - uGridEnd));
-        float d = min(dPeriodic, dEdge);
-        float inside = step(uGridOrigin - 1.5, fc.x) * step(fc.x, uGridEnd + 1.5);
-        float line = (1.0 - smoothstep(0.0, 1.0, d - 0.5)) * inside;
-        col = mix(col, uInk, line * uGridAlpha);
+        // --- 接触阴影：给主体压出一点重量 ---
+        vec2 sp = (vUv - uShadow.xy) * vec2(aspect, 1.9);
+        float sd2 = length(sp) / max(uShadow.z, 1e-3);
+        float shade = exp(-sd2 * sd2 * 1.6) * uShadowAmt;
+        col = mix(col, col * 0.78, clamp(shade, 0.0, 1.0));
 
-        // --- 水平基准线 ---
-        if (uHorizon > 0.0) {
-          float dh = abs(fc.y - (1.0 - uHorizon) * uRes.y);
-          float lh = 1.0 - smoothstep(0.0, 1.0, dh - 0.5);
-          col = mix(col, uInk, lh * uGridAlpha * 1.25);
-        }
-
-        // --- 纸感颗粒：把「柔和数码平面」打掉 ---
-        col += (hash12(fc) - 0.5) * uGrain;
+        // --- 轻微暗角，把视线送回画面中心 ---
+        float vg = length((vUv - 0.5) * vec2(aspect, 1.0));
+        col *= 1.0 - smoothstep(0.55, 1.08, vg) * 0.14;
 
         gl_FragColor = vec4(col, 1.0);
       }
@@ -239,47 +210,7 @@ export function createScene(canvas) {
     useTransition: true,
     structure: null,
     glass: null,
-    wmWord: "",
   };
-
-  /* ---- 水印缓存 ---- */
-  const wmCache = new Map();
-  const blank = (() => {
-    const cv = document.createElement("canvas");
-    cv.width = cv.height = 2;
-    const t = new THREE.CanvasTexture(cv);
-    t.generateMipmaps = false;
-    return t;
-  })();
-  bg.uniforms.uWmA.value = blank;
-  bg.uniforms.uWmB.value = blank;
-
-  function wordTexture(word) {
-    if (!word) return blank;
-    if (!wmCache.has(word)) wmCache.set(word, makeWordTexture(word));
-    return wmCache.get(word);
-  }
-
-  /** 换水印词：把旧词推到 A，新词放 B，由 uWmMix 交叉淡入。 */
-  function setWatermark(word) {
-    if (word === state.wmWord) return;
-    bg.uniforms.uWmA.value = bg.uniforms.uWmB.value;
-    bg.uniforms.uWmB.value = wordTexture(word);
-    bg.uniforms.uWmMix.value = 0;
-    state.wmWord = word;
-  }
-
-  /** 字体真正就位后重烤一次，避免首帧用了回退字形。 */
-  function resetWatermarks() {
-    for (const t of wmCache.values()) t.dispose();
-    wmCache.clear();
-    const w = state.wmWord;
-    state.wmWord = "";
-    bg.uniforms.uWmA.value = blank;
-    bg.uniforms.uWmB.value = blank;
-    setWatermark(w);
-    bg.uniforms.uWmMix.value = 1;
-  }
 
   function setStructure(mesh) { state.structure = mesh; scene.add(mesh); }
   function setGlass(glass) { state.glass = glass; glassScene.add(glass.mesh); }
@@ -307,27 +238,8 @@ export function createScene(canvas) {
     transition.uniforms.uRes.value.set(pw, ph);
     // 玻璃正面画在**默认帧缓冲**上，所以归一化除数必须是屏幕绘制缓冲尺寸，
     // 不是 FBO 尺寸。写成 (pw, ph) 时 fboScale<1 会让 uv 整体放大 1/fboScale，
-    // 半屏以外全部 clamp 到贴图边缘——就是之前那层奶白拉丝的真正来源。
+    // 半屏以外全部 clamp 到贴图边缘——就是那层奶白拉丝的真正来源。
     if (state.glass) state.glass.uniforms.uResolution.value.set(w * dpr, h * dpr);
-
-    // 栅格：直接量一个真实 .act 的内边距，而不是重算 clamp()。
-    // 版心右界要减去章节轨走廊，否则 GL 的边界线会和 DOM 的行尾错开。
-    const actEl = document.querySelector(".act");
-    let padL = Math.max(w * 0.032, 17), padR = padL;
-    if (actEl) {
-      const s = getComputedStyle(actEl);
-      padL = parseFloat(s.paddingLeft) || padL;
-      padR = parseFloat(s.paddingRight) || padR;
-    }
-    const cols = 12;
-    const gutter = padL;                       // 列间距与左内边距同源
-    const contentW = Math.max(w - padL - padR, 1);
-    const colW = (contentW - (cols - 1) * gutter) / cols;
-    const stride = w >= 1000 ? 1 : w >= 640 ? 2 : 4;
-    const k = dpr * state.fboScale;
-    bg.uniforms.uGridOrigin.value = padL * k;
-    bg.uniforms.uGridEnd.value = (w - padR) * k;
-    bg.uniforms.uGridPitch.value = (colW + gutter) * stride * k;
   }
 
   function setFboScale(s) {
@@ -415,14 +327,13 @@ export function createScene(canvas) {
 
   function dispose() {
     fboA.dispose(); fboB.dispose(); fboDepth.dispose(); fboCore.dispose();
-    for (const t of wmCache.values()) t.dispose();
     renderer.dispose();
   }
 
   return {
     renderer, camera, scene, glassScene,
     bg, transition, state,
-    setStructure, setGlass, setWatermark, resetWatermarks,
+    setStructure, setGlass,
     resize, setFboScale, render, dispose,
   };
 }
