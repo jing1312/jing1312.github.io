@@ -1,0 +1,9 @@
+# 字体源文件 ~35 MB，tools/build_fonts.py 缺了会自己下
+fontsrc/
+# QA 产物，随时可重跑：python3 qa/test_site.py
+qa/shots/
+qa/survey/
+qa/survey_m/
+qa/qa_report.json
+qa/qa_report.md
+__pycache__/
