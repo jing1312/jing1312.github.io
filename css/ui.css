@@ -1,10 +1,9 @@
-/* Small interaction details shared by every view. */
-a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid rgba(90,169,232,.6); outline-offset: 3px; }
-button { -webkit-tap-highlight-color: transparent; }
-.is-booting #app { opacity: .96; }
-.no-webgl #app { opacity: 1; }
-.fallback-note { position: fixed; left: 1rem; bottom: 1rem; z-index: 10; padding: .35rem .6rem; border-radius: 9px; color: var(--ink-soft); background: rgba(255,255,255,.7); font: .64rem var(--ff-mono); }
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 3px solid rgba(90, 159, 214, .58);
+  outline-offset: 3px;
+}
+button { font: inherit; -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; opacity: .56; }
 .noscript { max-width: 42rem; margin: 0 auto; padding: 12vh 1.4rem; }
-.noscript h1 { font-size: 3rem; }
+.noscript h1 { font-size: 2.8rem; }
 .noscript p { margin-top: 1rem; line-height: 1.7; }
-.noscript a { color: var(--ink); }
