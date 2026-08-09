@@ -1,13 +1,11 @@
 /* ==========================================================================
-   scene.js — 渲染编排 · 夏日天空 + 玻璃链
+   scene.js — 渲染编排 · 夏日天空 + Living Artifact
    三个 pass：
      1a 背景 ortho quad   天空渐变 + 太阳 + 柔云 + 光带 → fboA
      1b 转场              柔光拖影（轻色差）  fboA → fboB
-     2  主体（玻璃链）    直接画到屏幕，珠面折射取样 fboA/fboB
-
-   链珠的材质需要「可折射的内容」——天空渐变、太阳、柔云、彩色光带，
-   每一颗珠在云边、太阳、色带上勾出柔和的彩色细边，这就是梦幻夏日
-   里唯一的 3D 主角：不套模型，不贴图。
+     2  主体（陶瓷雕塑）  真实透视相机，MeshPhysicalMaterial 折射这片天
+   艺术装置不需要把天空贴到自己身上——它直接「浸泡」在 fbo 之外的环境里
+   （PMREM 梯度环境 + 双方向灯），材质由 main.js 每帧喂风场参数。
    ========================================================================== */
 
 import * as THREE from "three";
@@ -150,10 +148,61 @@ export function createScene(canvas) {
   bgQuad.frustumCulled = false;
   bgScene.add(bgQuad);
 
-  /* ---- 主体（珠链，透视相机） ---- */
+  /* ---- 主体（Living Artifact，透视相机） ---- */
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   camera.position.set(0, 0, 4.6);
+
+  /* ---- 环境：给陶瓷一片“下午四点的光” ---- */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  let envMap = null;
+  const envState = { top: new THREE.Color(), bottom: new THREE.Color(), sun: new THREE.Color() };
+
+  /* 渐变半球 + 一枚暖日光斑，烘进 PMREM，作为陶瓷的反射处境。
+     内容只随 TONE 表缓变，颜色没变就不重建。 */
+  function bakeEnv(top, bottom, sun) {
+    if (envMap && envState.top.equals(top) && envState.bottom.equals(bottom)) {
+      envState.sun.copy(sun);
+      return envMap;
+    }
+    envState.top.copy(top); envState.bottom.copy(bottom); envState.sun.copy(sun);
+    const envScene = new THREE.Scene();
+    const grad = new THREE.DataTexture(
+      new Uint8Array([
+        Math.round(bottom.r * 255), Math.round(bottom.g * 255), Math.round(bottom.b * 255), 255,
+        Math.round(bottom.r * 0.94 + top.r * 0.06) * 255 | 0,
+        Math.round(bottom.g * 0.94 + top.g * 0.06) * 255 | 0,
+        Math.round(bottom.b * 0.94 + top.b * 0.06) * 255 | 0, 255,
+        Math.round(top.r * 255), Math.round(top.g * 255), Math.round(top.b * 255), 255,
+      ]),
+      3, 1, THREE.RGBAFormat, THREE.UnsignedByteType
+    );
+    grad.needsUpdate = true;
+    const globe = new THREE.Mesh(
+      new THREE.SphereGeometry(8, 32, 16),
+      new THREE.MeshBasicMaterial({ map: grad, side: THREE.BackSide, fog: false })
+    );
+    globe.rotation.y = 2.0;
+    envScene.add(globe);
+    const sunDisk = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 12, 8),
+      new THREE.MeshBasicMaterial({ color: sun })
+    );
+    sunDisk.position.set(4.0, 2.8, -3.4);
+    envScene.add(sunDisk);
+    if (envMap) { envMap.dispose(); }
+    envMap = pmrem.fromScene(envScene, 0.035);
+    globe.geometry.dispose(); globe.material.dispose();
+    sunDisk.geometry.dispose(); sunDisk.material.dispose();
+    return envMap;
+  }
+
+  /* 两盏方向灯：午后暖阳 + 天青色补光。风会轻轻推它们（见 main.js） */
+  const keyLight = new THREE.DirectionalLight(0xffe2bc, 1.6);
+  keyLight.position.set(3.2, 4.4, 2.6);
+  const fillLight = new THREE.DirectionalLight(0xbcd6f2, 0.5);
+  fillLight.position.set(-3.0, -1.6, -3.4);
+  scene.add(keyLight, fillLight);
 
   /* ---- 转场 ---- */
   const transition = createTransition();
@@ -196,10 +245,16 @@ export function createScene(canvas) {
     width: 2,
     height: 2,
     useTransition: true,
-    hero: null,
+    artifact: null,
   };
 
-  function setHero(hero) { state.hero = hero; scene.add(hero.mesh); }
+  function setArtifact(art) {
+    state.artifact = art;
+    scene.add(art.mesh);
+  }
+
+  // 兼容主页状态机对“主视觉主体”的命名，避免把渲染对象细节暴露给 UI 层。
+  const setHero = setArtifact;
 
   function resize() {
     const w = Math.max(canvas.clientWidth || window.innerWidth, 1);
@@ -220,8 +275,6 @@ export function createScene(canvas) {
 
     bg.uniforms.uRes.value.set(pw, ph);
     transition.uniforms.uRes.value.set(pw, ph);
-    // 珠链的折射需要屏幕分辨率的精确比值
-    if (state.hero) state.hero.uniforms.uResolution.value.set(w * dpr, h * dpr);
   }
 
   function setFboScale(s) {
@@ -232,13 +285,13 @@ export function createScene(canvas) {
 
   /** 主体在屏幕上的位置 → 接触阴影落点。 */
   function updateShadow() {
-    const hero = state.hero;
-    if (!hero) return;
-    const p = new THREE.Vector3().setFromMatrixPosition(hero.mesh.matrixWorld);
+    const art = state.artifact;
+    if (!art) return;
+    const p = new THREE.Vector3().setFromMatrixPosition(art.mesh.matrixWorld);
     p.project(camera);
     const uvx = p.x * 0.5 + 0.5;
     const uvy = p.y * 0.5 + 0.5;
-    const s = hero.mesh.scale.x * 1.25;
+    const s = art.mesh.scale.x * 1.25;
     bg.uniforms.uShadow.value.set(uvx, uvy - 0.30 * s, 0.30 * s + 0.10);
   }
 
@@ -267,23 +320,27 @@ export function createScene(canvas) {
     blitMat.uniforms.uTex.value = src.texture;
     renderer.render(blitScene, fsCam);
 
-    // Pass 3 —— 玻璃链：珠子折射出 fbo 内容
-    const hero = state.hero;
-    if (hero) {
-      hero.uniforms.uTex.value = src.texture;
+    // Pass 3 —— Living Artifact：陶瓷雕塑（材质自己吃环境与风）
+    const art = state.artifact;
+    if (art) {
+      // 珠链会读取刚刚生成的天空 FBO，形成真正的背景折射。
+      if (art.uniforms?.uTex) art.uniforms.uTex.value = src.texture;
+      if (art.uniforms?.uResolution) art.uniforms.uResolution.value.set(renderer.domElement.width, renderer.domElement.height);
       renderer.render(scene, camera);
     }
   }
 
   function dispose() {
     fboA.dispose(); fboB.dispose();
+    if (envMap) { envMap.dispose(); pmrem.dispose(); }
     renderer.dispose();
   }
 
   return {
     renderer, camera, scene,
     bg, transition, state,
-    setHero,
+    env: { bakeEnv, lights: { keyLight, fillLight } },
+    setArtifact, setHero,
     resize, setFboScale, render, dispose,
   };
 }
