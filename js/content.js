@@ -20,16 +20,16 @@ export const nav = [
 ];
 
 export const hero = {
-  status: "现在在线 · 还在学习",
-  title: "欢迎来到我的小小研究花园",
-  lede: "这里放着我写过的工具、整理过的资料，还有几个还没长成的想法。你可以从项目逛起，也可以先看看我做事的方式。",
-  primary: "逛逛项目",
-  secondary: "看看工作方式",
-  sceneLabel: "a small place for useful things",
+  status: "最近在整理学习工具",
+  lede: "有时候背药化，有时候写脚本。我把真正做完、现在还会打开用的东西放在这里，也把没想明白的方向单独留着。",
+  primary: "看看项目",
+  secondary: "我的工作台",
+  sceneLabel: "study · code · repeat",
+  tags: ["药学在读", "Python / JavaScript", "学习工具"],
   facts: [
-    { value: "14", label: "公开仓库" },
-    { value: "49", label: "图表工作流仓库的 stars" },
-    { value: "132", label: "数字分身测试数" },
+    { value: "14", label: "个公开仓库" },
+    { value: "8", label: "个精选项目" },
+    { value: "∞", label: "还会继续改" },
   ],
 };
 

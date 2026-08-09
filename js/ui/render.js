@@ -52,54 +52,59 @@ function kicker(text, number = "") {
 }
 
 function shell(app) {
+  const characterStage = h("canvas", { id: "character-stage", "aria-hidden": "true" });
   const topbar = h("header", { class: "topbar" },
     h("a", { class: "brand", href: "#home", "data-view": "home", "aria-label": "回到首页" },
       h("span", { class: "brand-orbit", "aria-hidden": "true" }, h("span", { class: "brand-dot" })),
-      h("span", { class: "brand-copy" }, h("strong", { text: "jingjing" }), h("small", { text: "research garden" }))),
-    h("div", { class: "topbar-status" }, h("span", { class: "status-dot", "aria-hidden": "true" }), h("span", { text: "local / still growing" })),
+      h("span", { class: "brand-copy" }, h("strong", { text: "jingjing" }), h("small", { text: "个人主页" }))),
+    h("div", { class: "topbar-status" }, h("span", { class: "status-dot", "aria-hidden": "true" }), h("span", { text: "最近：整理学习工具" })),
     h("button", { class: "mobile-menu", type: "button", "aria-expanded": "false", "aria-controls": "side-nav", "data-action": "toggle-menu" }, icon("☰"), h("span", { class: "sr-only", text: "打开导航" }))
   );
 
   const navList = h("nav", { class: "side-nav", id: "side-nav", "aria-label": "主页导航" },
+    h("div", { class: "nav-profile" },
+      h("img", { src: "assets/character-hero.png", alt: "jingjing 的主页角色" }),
+      h("div", null, h("strong", { text: "jingjing" }), h("small", { text: "药学 / 小工具" }))),
     h("div", { class: "nav-label", text: "探索" }),
     ...C.nav.map((item, index) => h("a", { class: "nav-item", href: `#${item.id}`, "data-view": item.id }, icon(item.icon), h("span", { text: item.label }), h("small", { text: String(index + 1).padStart(2, "0") }))),
     h("div", { class: "nav-divider" }),
-    h("div", { class: "nav-caption", text: "这不是简历的另一种排版，是我把东西放在一起的方式。" }),
+    h("div", { class: "nav-caption", text: "公开仓库、学习工具，还有一些过程笔记。" }),
     link("GitHub / jing1312", C.site.github, "nav-github")
   );
 
   const content = h("div", { class: "content-wrap" }, h("div", { id: "view-root", tabindex: "-1" }));
   const contact = h("a", { class: "floating-contact", href: C.site.github, target: "_blank", rel: "noopener noreferrer", "aria-label": "打开 GitHub" }, icon("↗"), h("span", { text: "找我" }));
-  app.append(topbar, navList, content, contact);
+  app.append(characterStage, topbar, navList, content, contact);
 }
 
 function renderHome(root) {
   const d = C.hero;
   root.append(
-    kicker("HOME / 01", "welcome"),
+    kicker("HOME / 01", "你好"),
     h("section", { class: "home-layout" },
       h("div", { class: "home-copy" },
         h("div", { class: "status-label" }, h("span", { class: "status-dot", "aria-hidden": "true" }), h("span", { text: d.status })),
-        h("h1", { class: "home-title" }, "欢迎来到", h("span", { class: "title-accent", text: "我的小小" }), h("br"), "研究花园"),
+        h("h1", { class: "home-title" }, "我是 ", h("span", { class: "title-accent", text: "jingjing" }), "。", h("br"), "药学在读。"),
         h("p", { class: "home-lede", text: d.lede }),
+        h("div", { class: "hero-tags" }, ...d.tags.map((tag) => h("span", { text: tag }))),
         h("div", { class: "home-actions" }, button(d.primary, "go-projects", "button button--primary", "→"), button(d.secondary, "go-workbench", "button button--soft", "⌘")),
         h("div", { class: "home-facts" }, ...d.facts.map((fact) => h("div", { class: "fact" }, h("strong", { text: fact.value }), h("span", { text: fact.label }))))
       ),
       h("div", { class: "home-art" },
-        h("div", { class: "art-shadow", "aria-hidden": "true" }),
-        h("div", { class: "art-frame" },
-          h("img", { src: "assets/character-hero.png", alt: "戴猫耳帽、背着小包的 3D 角色", class: "hero-character" }),
-          h("span", { class: "sticker sticker--one", text: "✦" }),
-          h("span", { class: "sticker sticker--two", text: "hello!" }),
-          h("span", { class: "art-caption", text: d.sceneLabel })
-        ),
-        h("div", { class: "floating-tag floating-tag--top" }, h("span", { text: "✦" }), h("span", { text: "study" })),
-        h("div", { class: "floating-tag floating-tag--bottom" }, h("span", { text: "◈" }), h("span", { text: "make + check" }))
+        h("div", { class: "stage-halo", "aria-hidden": "true" }),
+        h("div", { class: "stage-loading", text: "正在准备人物舞台…" }),
+        h("div", { class: "floating-tag floating-tag--top" }, h("span", { text: "✦" }), h("span", { text: "药学" })),
+        h("div", { class: "floating-tag floating-tag--bottom" }, h("span", { text: "◈" }), h("span", { text: "写点工具" })),
+        h("span", { class: "art-caption", text: d.sceneLabel })
       )
     ),
-    h("section", { class: "home-lower" },
-      h("div", { class: "quote-block" }, h("span", { class: "quote-mark", text: "“" }), h("p", { text: "我喜欢先把问题拆小，再决定要不要让模型参与。" }), h("small", { text: "— 一条工作习惯" })),
-      h("div", { class: "home-map" }, h("span", { class: "map-dot map-dot--pink" }), h("span", { class: "map-dot map-dot--blue" }), h("span", { class: "map-dot map-dot--yellow" }), h("span", { class: "map-line" }), h("small", { text: "从一个小麻烦开始" }))
+    h("section", { class: "home-featured" },
+      h("div", { class: "featured-heading" }, h("div", null, h("span", { class: "eyebrow", text: "RECENTLY OPENED" }), h("h2", { text: "最近常打开的三个仓库" })), button("全部项目", "go-projects", "button button--ghost", "→")),
+      h("div", { class: "featured-grid" }, ...C.projects.cards.slice(0, 3).map((project) =>
+        h("a", { class: `featured-project featured-project--${project.accent}`, href: project.url, target: "_blank", rel: "noopener noreferrer" },
+          h("span", { class: "featured-icon", text: project.category === "study" ? "✎" : project.category === "craft" ? "✦" : "⌘" }),
+          h("div", null, h("strong", { text: project.repo }), h("p", { text: project.desc })),
+          h("span", { class: "link-arrow", text: "↗" }))))
     )
   );
 }
@@ -174,6 +179,7 @@ function renderView(root) {
   renderer(view);
   root.append(view);
   document.body.dataset.tone = C.tones[state.view] || "paper";
+  document.body.dataset.view = state.view;
   document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("is-active", item.dataset.view === state.view));
   window.__homepage = { view: state.view, navigate, filter: state.filter };
 }

@@ -22,17 +22,21 @@ for (const project of content.projects.cards) {
 }
 
 const index = await read("index.html");
+assert(!index.includes('id="poster"'), "静态兜底人物不应常驻页面并覆盖正文");
 const localAssets = [...index.matchAll(/(?:src|href)="([^"#][^"]*)"/g)]
   .map((match) => match[1])
   .filter((path) => !path.startsWith("http") && !path.startsWith("data:"));
 for (const asset of localAssets) await access(join(root, asset));
 
 const render = await read("js/ui/render.js");
+assert(render.includes('id: "character-stage"'), "首页缺少独立的 3D 人物舞台");
+await access(join(root, "js/gl/character-stage.js"));
+await access(join(root, "assets/character-hero.png"));
 for (const action of ["filter", "toggle-project", "note-tab", "toggle-menu", "island"]) {
   assert(render.includes(`action === "${action}"`), `缺少交互处理：${action}`);
 }
 
-const sourceFiles = ["README.md", "index.html", "js/content.js", "js/main.js", "js/ui/render.js", "css/layout.css"];
+const sourceFiles = ["README.md", "index.html", "js/content.js", "js/main.js", "js/ui/render.js", "js/gl/character-stage.js", "css/layout.css"];
 const privatePattern = /[A-Za-z]:\\|C:\/Users|D:\/|江静静|\bsk-[A-Za-z0-9]{12,}|github_pat_/;
 for (const file of sourceFiles) {
   assert(!privatePattern.test(await read(file)), `${file} 包含本机路径或密钥模式`);
