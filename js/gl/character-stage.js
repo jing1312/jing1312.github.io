@@ -1,11 +1,16 @@
 /*
- * character-stage.js — 首页的 2.5D 人物舞台。
- * 人物图片在 WebGL 中做近白背景透明化，再与真正的 3D 几何体分层组合。
+ * THESIS: 头像不是一张放在卡片里的图片，而是一枚会呼吸、会跟手的桌面徽章。
+ * OWN-WORLD: 粉白软陶、半透明圆盘、珊瑚粉动作色和少量薄荷/药丸黄。
+ * STORY: 先认出 jingjing，再看到药学、代码和课程工具都在同一个桌面上。
+ * FIRST VIEWPORT: 左侧是真人语气的介绍，右侧 Kitty 占据独立圆形舞台，下沿露出近期内容。
+ * FORM: 用户指定的圆形头像舞台；Three.js 多层圆盘与软陶小物替代静态 CSS 拼贴。
  */
 
 import * as THREE from "three";
 
-const VERTEX_SHADER = /* glsl */ `
+export const KITTY_BOB_AMPLITUDE = .14;
+
+const PORTRAIT_VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main() {
     vUv = uv;
@@ -13,164 +18,278 @@ const VERTEX_SHADER = /* glsl */ `
   }
 `;
 
-const FRAGMENT_SHADER = /* glsl */ `
+const PORTRAIT_FRAGMENT = /* glsl */ `
   uniform sampler2D uMap;
   uniform float uOpacity;
   varying vec2 vUv;
   void main() {
+    vec2 point = vUv - .5;
+    float radius = length(point);
+    float mask = 1.0 - smoothstep(.475, .5, radius);
     vec4 texel = texture2D(uMap, vUv);
-    float distanceFromWhite = length(vec3(1.0) - texel.rgb);
-    float chroma = max(texel.r, max(texel.g, texel.b)) - min(texel.r, min(texel.g, texel.b));
-    float alpha = smoothstep(0.045, 0.18, distanceFromWhite + chroma * 0.32);
-    alpha *= texel.a * uOpacity;
-    if (alpha < 0.015) discard;
-    gl_FragColor = vec4(texel.rgb, alpha);
+    if (mask < .01) discard;
+    gl_FragColor = vec4(texel.rgb, texel.a * mask * uOpacity);
   }
 `;
 
-function pastelMaterial(color, roughness = .28) {
-  return new THREE.MeshPhysicalMaterial({
+function clay(color, options = {}) {
+  const material = new THREE.MeshPhysicalMaterial({
     color,
-    roughness,
+    roughness: options.roughness ?? .32,
     metalness: 0,
-    clearcoat: .8,
-    clearcoatRoughness: .24,
+    clearcoat: options.clearcoat ?? .72,
+    clearcoatRoughness: .28,
     transparent: true,
+    opacity: options.opacity ?? 1,
   });
+  material.userData.baseOpacity = material.opacity;
+  return material;
 }
 
-export function createCharacterStage(canvas, { reducedMotion = false, onReady } = {}) {
+function createCapsule() {
+  const group = new THREE.Group();
+  const pink = clay(0xf06f98, { roughness: .2 });
+  const yellow = clay(0xffd16b, { roughness: .24 });
+  const top = new THREE.Mesh(new THREE.SphereGeometry(.14, 24, 16), pink);
+  const bottom = new THREE.Mesh(new THREE.SphereGeometry(.14, 24, 16), yellow);
+  top.scale.y = bottom.scale.y = .78;
+  top.position.y = .105;
+  bottom.position.y = -.105;
+  group.add(top, bottom);
+  group.rotation.z = -.72;
+  return group;
+}
+
+function createRobot() {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(.32, .25, .22), clay(0x8a83d8));
+  const face = new THREE.Mesh(new THREE.BoxGeometry(.24, .13, .025), clay(0xeef5ff, { roughness: .45 }));
+  face.position.set(0, .015, .122);
+  const eyeMaterial = clay(0x293451, { roughness: .5 });
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(.025, 12, 8), eyeMaterial);
+  const rightEye = leftEye.clone();
+  leftEye.position.set(-.055, .02, .145);
+  rightEye.position.set(.055, .02, .145);
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, .15, 12), clay(0xf06f98));
+  antenna.position.y = .19;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(.035, 14, 10), clay(0xffd16b));
+  tip.position.y = .28;
+  group.add(body, face, leftEye, rightEye, antenna, tip);
+  return group;
+}
+
+function createFlower() {
+  const group = new THREE.Group();
+  const petalMaterial = clay(0xff7da5, { roughness: .28 });
+  for (let index = 0; index < 5; index += 1) {
+    const angle = index / 5 * Math.PI * 2;
+    const petal = new THREE.Mesh(new THREE.SphereGeometry(.105, 18, 12), petalMaterial);
+    petal.scale.set(.72, 1.18, .45);
+    petal.position.set(Math.cos(angle) * .13, Math.sin(angle) * .13, 0);
+    petal.rotation.z = angle - Math.PI / 2;
+    group.add(petal);
+  }
+  group.add(new THREE.Mesh(new THREE.SphereGeometry(.075, 18, 12), clay(0xffd36f)));
+  return group;
+}
+
+function createTube() {
+  const group = new THREE.Group();
+  const glass = clay(0xdff7ff, { opacity: .68, roughness: .1, clearcoat: 1 });
+  const liquid = clay(0x77d7ad, { opacity: .9 });
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .34, 24, 1, true), glass);
+  const liquidBody = new THREE.Mesh(new THREE.CylinderGeometry(.056, .056, .16, 20), liquid);
+  liquidBody.position.y = -.075;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(.078, .014, 10, 30), clay(0x70b6ed));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = .17;
+  group.add(tube, liquidBody, rim);
+  group.rotation.z = -.55;
+  return group;
+}
+
+export function createCharacterStage(canvas, { reducedMotion = false, onReady, onError } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.domElement.dataset.engine = `three.js r${THREE.REVISION}`;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(35, 1, .1, 20);
-  camera.position.set(0, 0, 5);
+  const camera = new THREE.PerspectiveCamera(34, 1, .1, 30);
+  camera.position.set(0, 0, 6);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xb9a9de, 2.8));
+  const key = new THREE.DirectionalLight(0xfff2f6, 4.2);
+  key.position.set(3.4, 4, 5);
+  const rimLight = new THREE.DirectionalLight(0xaee8ff, 2.2);
+  rimLight.position.set(-4, 1, 3);
+  scene.add(key, rimLight);
 
   const stage = new THREE.Group();
+  const core = new THREE.Group();
+  const kittyRig = new THREE.Group();
+  const rings = new THREE.Group();
+  stage.add(core);
+  core.add(rings, kittyRig);
   scene.add(stage);
 
-  const ambient = new THREE.HemisphereLight(0xffffff, 0xb8a9df, 2.4);
-  const key = new THREE.DirectionalLight(0xfff1df, 3.6);
-  key.position.set(3, 4, 5);
-  const fill = new THREE.DirectionalLight(0xb8dcff, 1.8);
-  fill.position.set(-4, 1, 3);
-  scene.add(ambient, key, fill);
+  const backPlate = new THREE.Mesh(
+    new THREE.CircleGeometry(1.52, 72),
+    clay(0xfefcff, { opacity: .88, roughness: .5 })
+  );
+  backPlate.position.z = -.34;
+  core.add(backPlate);
 
-  const imageUniforms = { uMap: { value: null }, uOpacity: { value: 0 } };
-  const imageMaterial = new THREE.ShaderMaterial({
-    uniforms: imageUniforms,
-    vertexShader: VERTEX_SHADER,
-    fragmentShader: FRAGMENT_SHADER,
+  const innerPlate = new THREE.Mesh(
+    new THREE.CircleGeometry(1.17, 72),
+    clay(0xffe8ef, { opacity: .54, roughness: .42 })
+  );
+  innerPlate.position.z = -.2;
+  core.add(innerPlate);
+
+  const ringMaterials = [
+    clay(0xf7a8be, { opacity: .72, roughness: .18 }),
+    clay(0xffffff, { opacity: .92, roughness: .2 }),
+    clay(0xd7c7f6, { opacity: .58, roughness: .2 }),
+  ];
+  const ringSpecs = [[1.22, .036, -.09], [1.34, .025, -.17], [1.46, .018, -.25]];
+  ringSpecs.forEach(([radius, tube, z], index) => {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 18, 96), ringMaterials[index]);
+    ring.position.z = z;
+    ring.rotation.set(index * .05, index * -.08, 0);
+    rings.add(ring);
+  });
+
+  const portraitUniforms = { uMap: { value: null }, uOpacity: { value: 0 } };
+  const portraitMaterial = new THREE.ShaderMaterial({
+    uniforms: portraitUniforms,
+    vertexShader: PORTRAIT_VERTEX,
+    fragmentShader: PORTRAIT_FRAGMENT,
     transparent: true,
     depthWrite: false,
   });
-  const portrait = new THREE.Mesh(new THREE.PlaneGeometry(2.72, 2.72), imageMaterial);
-  portrait.position.set(.08, -.04, .08);
-  portrait.renderOrder = 3;
-  stage.add(portrait);
+  const portrait = new THREE.Mesh(new THREE.PlaneGeometry(2.08, 2.08), portraitMaterial);
+  portrait.position.z = .08;
+  kittyRig.add(portrait);
 
-  const decorations = [];
-  function addDecoration(geometry, material, position, scale = 1) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(...position);
-    mesh.scale.setScalar(scale);
-    mesh.userData.baseY = position[1];
-    mesh.userData.phase = decorations.length * 1.37;
-    stage.add(mesh);
-    decorations.push(mesh);
-    return mesh;
+  const props = [];
+  function addProp(object, position, scale, phase) {
+    object.position.set(...position);
+    object.scale.setScalar(scale);
+    object.userData.base = new THREE.Vector3(...position);
+    object.userData.phase = phase;
+    object.userData.spin = .18 + phase * .035;
+    stage.add(object);
+    props.push(object);
   }
 
-  addDecoration(new THREE.OctahedronGeometry(.18, 1), pastelMaterial(0xffcf68), [-1.12, .98, .42], 1.05);
-  addDecoration(new THREE.IcosahedronGeometry(.17, 2), pastelMaterial(0xf08bad), [1.08, .78, .32], .94);
-  addDecoration(new THREE.OctahedronGeometry(.15, 1), pastelMaterial(0xab91ed), [-1.28, -.52, .2], .88);
-  addDecoration(new THREE.TorusGeometry(.21, .065, 18, 48), pastelMaterial(0x82b9ee, .2), [1.2, -.66, .28], .92).rotation.set(.8, .2, -.45);
-
-  const platform = new THREE.Mesh(
-    new THREE.CircleGeometry(1.16, 64),
-    new THREE.MeshBasicMaterial({ color: 0x657398, transparent: true, opacity: .11, depthWrite: false })
-  );
-  platform.rotation.x = -Math.PI / 2;
-  platform.position.set(.08, -1.28, -.22);
-  platform.scale.y = .32;
-  stage.add(platform);
+  addProp(createFlower(), [-1.42, 1.06, .24], .82, .2);
+  addProp(createCapsule(), [1.38, 1.12, .38], 1.16, 1.3);
+  addProp(createTube(), [-1.55, -.8, .3], 1.05, 2.4);
+  addProp(createRobot(), [1.34, -.92, .42], .9, 3.5);
+  addProp(new THREE.Mesh(new THREE.OctahedronGeometry(.105, 1), clay(0xffca55)), [1.58, .16, .5], 1, 4.2);
+  addProp(new THREE.Mesh(new THREE.OctahedronGeometry(.075, 1), clay(0xf2a2dc)), [-1.18, .2, .42], 1, 5.1);
 
   const pointer = new THREE.Vector2();
   const pointerTarget = new THREE.Vector2();
-  let visibility = 0;
   let ready = false;
-  let last = performance.now();
+  let visibility = 0;
+  let hopStartedAt = -1;
+  let previous = performance.now();
 
   const texture = new THREE.TextureLoader().load(
-    "assets/character-hero.png",
+    "assets/hello-kitty-avatar.png",
     (loaded) => {
       loaded.colorSpace = THREE.SRGBColorSpace;
       loaded.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-      imageUniforms.uMap.value = loaded;
+      portraitUniforms.uMap.value = loaded;
       ready = true;
       onReady?.();
-    }
+    },
+    undefined,
+    (error) => onError?.(error)
   );
-  imageUniforms.uMap.value = texture;
+  portraitUniforms.uMap.value = texture;
 
-  function onPointerMove(event) {
-    pointerTarget.set((event.clientX / window.innerWidth) * 2 - 1, -((event.clientY / window.innerHeight) * 2 - 1));
+  function handlePointer(event) {
+    pointerTarget.set((event.clientX / innerWidth) * 2 - 1, -((event.clientY / innerHeight) * 2 - 1));
   }
-  window.addEventListener("pointermove", onPointerMove, { passive: true });
+  function handleHop() {
+    if (!reducedMotion) hopStartedAt = performance.now();
+  }
+  addEventListener("pointermove", handlePointer, { passive: true });
+  addEventListener("kitty-hop", handleHop);
 
   function resize() {
-    const width = Math.max(window.innerWidth, 1);
-    const height = Math.max(window.innerHeight, 1);
-    const dprLimit = width < 760 ? 1.25 : 1.75;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprLimit));
+    const width = Math.max(innerWidth, 1);
+    const height = Math.max(innerHeight, 1);
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, width < 760 ? 1.3 : 1.8));
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
   resize();
-  window.addEventListener("resize", resize, { passive: true });
+  addEventListener("resize", resize, { passive: true });
+
+  function setMaterialVisibility(amount) {
+    portraitUniforms.uOpacity.value = amount;
+    stage.traverse((object) => {
+      if (!object.material || object.material === portraitMaterial) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        const base = material.userData.baseOpacity ?? 1;
+        material.opacity = base * amount;
+      }
+    });
+  }
 
   function frame(now) {
-    const dt = Math.min((now - last) / 1000, .05);
-    last = now;
+    const dt = Math.min((now - previous) / 1000, .05);
+    previous = now;
     const homeVisible = (window.__homepage?.view || "home") === "home";
     const targetVisibility = homeVisible && ready ? 1 : 0;
-    visibility += (targetVisibility - visibility) * (reducedMotion ? 1 : Math.min(1, dt * 7));
-    imageUniforms.uOpacity.value = visibility;
-    for (const mesh of decorations) mesh.material.opacity = visibility;
-    platform.material.opacity = .11 * visibility;
+    visibility += (targetVisibility - visibility) * (reducedMotion ? 1 : Math.min(1, dt * 8));
+    setMaterialVisibility(visibility);
     stage.visible = visibility > .01;
 
-    const aspect = window.innerWidth / Math.max(window.innerHeight, 1);
+    const area = document.querySelector(".hero-stage")?.getBoundingClientRect();
+    const viewportWidth = Math.max(innerWidth, 1);
+    const viewportHeight = Math.max(innerHeight, 1);
+    const aspect = viewportWidth / viewportHeight;
     const visibleHeight = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5));
-    const visibleWidth = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * aspect;
-    const art = document.querySelector(".home-art");
-    const artRect = art?.getBoundingClientRect();
-    const centerX = artRect ? artRect.left + artRect.width * .5 : window.innerWidth * .72;
-    const centerY = artRect ? artRect.top + artRect.height * .49 : window.innerHeight * .48;
-    const targetX = ((centerX / window.innerWidth) * 2 - 1) * visibleWidth * .5;
-    const targetY = -((centerY / window.innerHeight) * 2 - 1) * visibleHeight * .5;
+    const visibleWidth = visibleHeight * aspect;
+    const centerX = area ? area.left + area.width * .5 : viewportWidth * .72;
+    const centerY = area ? area.top + area.height * .48 : viewportHeight * .5;
+    const targetX = ((centerX / viewportWidth) * 2 - 1) * visibleWidth * .5;
+    const targetY = -((centerY / viewportHeight) * 2 - 1) * visibleHeight * .5;
+    const widthScale = area ? (area.width * .9 / viewportWidth) * visibleWidth / 3.55 : .56;
+    const heightScale = area ? (area.height * .9 / viewportHeight) * visibleHeight / 3.45 : .56;
+    const targetScale = THREE.MathUtils.clamp(Math.min(widthScale, heightScale), .38, .76);
 
-    // 舞台尺寸来自右侧容器，避免人物在矮屏和窄屏上压住标题。
-    const widthScale = artRect ? (artRect.width * .82 / window.innerWidth) * visibleWidth / 3.05 : .58;
-    const heightScale = artRect ? (artRect.height * .86 / window.innerHeight) * visibleHeight / 2.9 : .58;
-    const targetScale = THREE.MathUtils.clamp(Math.min(widthScale, heightScale), .36, .68);
-    stage.position.x += (targetX - stage.position.x) * Math.min(1, dt * 6);
-    stage.position.y += (targetY - stage.position.y) * Math.min(1, dt * 6);
-    stage.scale.x += (targetScale - stage.scale.x) * Math.min(1, dt * 6);
-    stage.scale.y = stage.scale.z = stage.scale.x;
+    stage.position.x += (targetX - stage.position.x) * Math.min(1, dt * 7);
+    stage.position.y += (targetY - stage.position.y) * Math.min(1, dt * 7);
+    stage.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), Math.min(1, dt * 7));
 
     if (!reducedMotion) {
       pointer.lerp(pointerTarget, Math.min(1, dt * 5));
-      stage.rotation.y += (pointer.x * .10 - stage.rotation.y) * Math.min(1, dt * 4);
-      stage.rotation.x += (-pointer.y * .055 - stage.rotation.x) * Math.min(1, dt * 4);
-      portrait.position.y = -.04 + Math.sin(now * .00072) * .035;
-      decorations.forEach((mesh, index) => {
-        mesh.position.y = mesh.userData.baseY + Math.sin(now * .0011 + mesh.userData.phase) * .075;
-        mesh.rotation.x += dt * (.25 + index * .035);
-        mesh.rotation.y += dt * (.34 + index * .045);
+      stage.rotation.y += (pointer.x * .16 - stage.rotation.y) * Math.min(1, dt * 4);
+      stage.rotation.x += (-pointer.y * .1 - stage.rotation.x) * Math.min(1, dt * 4);
+
+      const naturalBob = Math.sin(now * .00115) * KITTY_BOB_AMPLITUDE;
+      const hopAge = hopStartedAt < 0 ? 2 : (now - hopStartedAt) / 760;
+      const hop = hopAge < 1 ? Math.sin(hopAge * Math.PI) * .46 : 0;
+      kittyRig.position.y = naturalBob + hop;
+      kittyRig.rotation.z = Math.sin(now * .0008) * .035 + pointer.x * .025;
+      const hopScale = 1 + (hopAge < 1 ? Math.sin(hopAge * Math.PI) * .08 : 0);
+      kittyRig.scale.setScalar(hopScale);
+
+      rings.rotation.z += dt * .06;
+      rings.rotation.y = Math.sin(now * .00042) * .08 + pointer.x * .05;
+      props.forEach((object) => {
+        object.position.y = object.userData.base.y + Math.sin(now * .0012 + object.userData.phase) * .13;
+        object.position.x = object.userData.base.x + Math.cos(now * .00072 + object.userData.phase) * .035;
+        object.rotation.y += dt * object.userData.spin;
+        object.rotation.x += dt * object.userData.spin * .58;
       });
     }
 
@@ -181,15 +300,21 @@ export function createCharacterStage(canvas, { reducedMotion = false, onReady } 
   return {
     renderer,
     get ready() { return ready; },
+    hop: handleHop,
     dispose() {
       renderer.setAnimationLoop(null);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("resize", resize);
+      removeEventListener("pointermove", handlePointer);
+      removeEventListener("kitty-hop", handleHop);
+      removeEventListener("resize", resize);
       texture.dispose();
-      portrait.geometry.dispose();
-      imageMaterial.dispose();
-      decorations.forEach((mesh) => { mesh.geometry.dispose(); mesh.material.dispose(); });
-      platform.geometry.dispose(); platform.material.dispose();
+      stage.traverse((object) => {
+        object.geometry?.dispose?.();
+        if (object.material && object.material !== portraitMaterial) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => material.dispose());
+        }
+      });
+      portraitMaterial.dispose();
       renderer.dispose();
     },
   };
