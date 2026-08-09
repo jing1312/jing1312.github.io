@@ -1,187 +1,185 @@
-/*
- * content.js — 主页里的事实、语气和导航都集中在这里。
- * 文案只写公开仓库能核验的内容；正在做的方向会明确标成“进行中”。
- */
+/* content.js - 主页文字和公开项目资料。只写能从仓库核对的内容。 */
 
 export const site = {
   name: "jingjing",
-  title: "jingjing — 研究花园",
-  description: "药学在读，喜欢把学习、整理和重复工作做成能继续使用的小工具。",
+  handle: "jing1312",
+  title: "jingjing / 药学与小工具",
+  description: "药学大三。平时背结构、做作业，也写一些自己会反复用的小工具。",
   github: "https://github.com/jing1312",
 };
 
 export const nav = [
-  { id: "home", label: "首页", icon: "⌂", tone: "paper" },
-  { id: "garden", label: "花园", icon: "✦", tone: "blue" },
-  { id: "projects", label: "项目", icon: "◈", tone: "amber" },
-  { id: "workbench", label: "工作台", icon: "⌘", tone: "mint" },
-  { id: "notes", label: "笔记", icon: "✎", tone: "lavender" },
-  { id: "about", label: "关于我", icon: "◌", tone: "magenta" },
+  { id: "home", label: "首页" },
+  { id: "projects", label: "项目" },
+  { id: "recent", label: "最近" },
+  { id: "tools", label: "工具" },
+  { id: "notes", label: "笔记" },
+  { id: "about", label: "关于" },
 ];
 
 export const hero = {
-  status: "最近在整理学习工具",
-  lede: "有时候背药化，有时候写脚本。我把真正做完、现在还会打开用的东西放在这里，也把没想明白的方向单独留着。",
-  primary: "看看项目",
-  secondary: "我的工作台",
-  sceneLabel: "study · code · repeat",
-  tags: ["药学在读", "Python / JavaScript", "学习工具"],
+  badge: "大三 / 药学 / 还在折腾",
+  title: "你好，我是 jingjing",
+  lede: "平时主要忙两件事：背药化，和把不好用的流程改成小工具。这里放的是我现在还会打开的仓库，也留着一些没做完的东西。",
+  primary: "先看项目",
+  secondary: "最近在忙",
+  stageLabel: "背药化 · 写脚本 · 接着改",
   facts: [
-    { value: "14", label: "个公开仓库" },
-    { value: "8", label: "个精选项目" },
-    { value: "∞", label: "还会继续改" },
+    { value: "14", label: "公开仓库" },
+    { value: "8", label: "这里重点放的项目" },
+    { value: "132", label: "daily-digital-twin 测试" },
   ],
-};
-
-export const garden = {
-  kicker: "THE GARDEN",
-  title: "把仓库摆成几座小岛",
-  lede: "每一座岛都来自一个很具体的麻烦：课件太散、结构记不住、流程跑完却不知道有没有真的完成。",
-  islands: [
-    { id: "study", name: "学习岛", mark: "01", color: "pink", projects: "flashcard-pharm · TCM-Study-Materials", note: "让记忆有地方落脚。" },
-    { id: "flow", name: "流程岛", mark: "02", color: "mint", projects: "skipping-lectures · daily-digital-twin", note: "把重复步骤写成可以重跑的流程。" },
-    { id: "craft", name: "图表岛", mark: "03", color: "yellow", projects: "nature-figure-skill · svg-optimization-skill", note: "先把“好看”拆成能检查的细节。" },
+  desk: [
+    { title: "课程处理脚本", note: "最近在补失败后的恢复逻辑。", tone: "pink" },
+    { title: "论文图表", note: "继续收集那些一眼看不出的排版问题。", tone: "lavender" },
+    { title: "药化闪卡", note: "想把错题记录做轻一点。", tone: "mint" },
   ],
-  sideNote: {
-    title: "逛法",
-    lines: ["点一座岛，可以直接跳到相关项目。", "点项目卡片的展开按钮，可以看到它为什么存在。", "这里的数字只记公开仓库，不把计划写成成果。"],
-  },
 };
 
 export const projects = {
-  kicker: "PROJECT CABINET",
-  title: "一些确实做过的东西",
-  lede: "它们不全是大项目，大多数只是我不想再手动做第二遍的事情。",
+  title: "我确实做过的东西",
+  lede: "大多是从一次作业、一次复习，或者某个重复到烦的步骤开始的。",
   filters: [
     { id: "all", label: "全部" },
-    { id: "study", label: "学习工具" },
-    { id: "flow", label: "流程与自动化" },
-    { id: "craft", label: "图表与设计" },
+    { id: "study", label: "学习" },
+    { id: "flow", label: "流程" },
+    { id: "craft", label: "图表" },
   ],
   cards: [
     {
-      repo: "skipping-lectures", category: "flow", categoryLabel: "流程与自动化", lang: "Python", status: "在用", accent: "pink",
-      desc: "把录播课整理成转写、要点、课件和笔记。批处理会保留中间结果，失败后可以从上次停下的位置继续。",
-      why: "课程视频一多，真正耗时间的不是看，而是反复下载、转写、改文件名和找重点。",
-      done: "已经有批量处理和结果校验，适合把一批课程资料整理成可读的学习材料。",
-      next: "继续补不同课程平台的输入适配，先保证失败时说清楚原因。",
+      repo: "skipping-lectures", category: "flow", categoryLabel: "课程处理", lang: "Python", status: "在用", accent: "pink",
+      desc: "把录播课整理成转写、要点、课件和笔记。批处理会保留中间结果，失败后能接着跑。",
+      why: "课程视频一多，真正费时间的是下载、改文件名、转写和重新找重点。",
+      done: "已经有批量处理、结果校验和断点恢复。",
+      next: "继续补不同课程平台的输入适配，失败时把原因说得更清楚。",
       url: "https://github.com/jing1312/skipping-lectures",
     },
     {
-      repo: "daily-digital-twin", category: "flow", categoryLabel: "流程与自动化", lang: "Node.js", status: "在用", accent: "mint",
-      desc: "一个偏本地的个人自动化运行时：任务进来以后，要有可观察的完成证据，才算真正完成。",
-      why: "自动化最容易让人不放心的地方，是它说做完了，但你没有办法快速核对。",
-      done: "仓库里有 132 个测试，并在 Linux / Windows 上做持续集成。",
-      next: "把策略审查和每次运行的记录做得更容易读。",
+      repo: "daily-digital-twin", category: "flow", categoryLabel: "本地自动化", lang: "Node.js", status: "在用", accent: "mint",
+      desc: "一个跑在本地的个人自动化工具。任务说完成之前，要留下可以核对的结果。",
+      why: "自动化最让人不放心的情况，是它说做完了，你却找不到证据。",
+      done: "仓库里有 132 个测试，并在 Linux 和 Windows 上跑 CI。",
+      next: "把策略检查和每次运行的记录做得更好读。",
       url: "https://github.com/jing1312/daily-digital-twin",
     },
     {
-      repo: "nature-figure-skill", category: "craft", categoryLabel: "图表与设计", lang: "Python", status: "公开", accent: "yellow",
-      desc: "面向论文图表的工作流：从图表契约、语义配色到导出前检查，减少“看起来差不多”的情况。",
-      why: "一张图的误差经常藏在标题、标注、单位和导出尺寸里，不只是在配色里。",
-      done: "仓库提供了可复用的图表工作流和检查思路，目前公开仓库有 49 stars。",
+      repo: "nature-figure-skill", category: "craft", categoryLabel: "论文图表", lang: "Python", status: "公开", accent: "yellow",
+      desc: "整理了一套论文图表流程，从语义配色、标注到导出前检查，专门抓那些不太显眼的小错误。",
+      why: "标题、单位、字号和导出尺寸都可能让一张图翻车，不只是配色。",
+      done: "仓库里有可复用的绘图流程和检查清单。",
       next: "继续收集不同图表类型的失败案例。",
       url: "https://github.com/jing1312/nature-figure-skill",
     },
     {
-      repo: "flashcard-pharm", category: "study", categoryLabel: "学习工具", lang: "HTML", status: "可用", accent: "lavender",
-      desc: "天然药物化学结构闪卡：看结构，回忆俗名、类型和用途，再用随机练习检查自己。",
-      why: "只看整理好的表格很容易产生“我会了”的错觉，真正需要的是反过来提问。",
+      repo: "flashcard-pharm", category: "study", categoryLabel: "药学复习", lang: "HTML", status: "可用", accent: "lavender",
+      desc: "天然药物化学结构闪卡。先看结构，再回忆俗名、类型和用途，支持随机练习。",
+      why: "只看整理好的表格，很容易误以为自己已经记住了。",
       done: "有结构分类、随机练习和移动端控制，打开网页就能用。",
-      next: "把自己的错题记录做得更轻一点。",
+      next: "补一个不打扰练习节奏的错题记录。",
       url: "https://github.com/jing1312/flashcard-pharm",
     },
     {
-      repo: "TCM-Study-Materials", category: "study", categoryLabel: "学习工具", lang: "HTML", status: "可用", accent: "blue",
-      desc: "中医药学概论的备考材料：计划、速记卡、关键词和自测入口放在同一个小套件里。",
-      why: "考试前最怕资料到处散着，所以把“今天复习什么”也放进页面。",
-      done: "整理出学习计划、闪卡和自测内容，适合复习时直接打开。",
-      next: "根据实际复习反馈调整内容的颗粒度。",
+      repo: "TCM-Study-Materials", category: "study", categoryLabel: "考前复习", lang: "HTML", status: "可用", accent: "blue",
+      desc: "中医药学概论的备考材料。计划、速记卡、关键词和自测入口放在一起。",
+      why: "考试前最怕资料散得到处都是，所以连今天看什么也一起写进页面。",
+      done: "已经整理出学习计划、闪卡和自测内容。",
+      next: "根据自己复习时卡住的地方调整内容。",
       url: "https://github.com/jing1312/TCM-Study-Materials",
     },
     {
-      repo: "svg-optimization-skill", category: "craft", categoryLabel: "图表与设计", lang: "JavaScript", status: "公开", accent: "orange",
-      desc: "把 SVG 里的文字测量、坐标回填和浏览器复核整理成一套流程，让版面别靠运气。",
-      why: "导出的 SVG 常常不是不能用，而是某个标题悄悄超出了卡片。",
-      done: "有测量工具、布局迭代方法和可复用的检查步骤。",
-      next: "继续把常见的溢出问题整理成更短的排查清单。",
+      repo: "svg-optimization-skill", category: "craft", categoryLabel: "SVG 排版", lang: "JavaScript", status: "公开", accent: "orange",
+      desc: "把 SVG 的文字测量、坐标回填和浏览器复核整理成一套流程。",
+      why: "很多 SVG 不是不能用，只是标题悄悄跑出了卡片。",
+      done: "有测量工具、布局方法和可以重复执行的检查步骤。",
+      next: "把常见溢出问题整理成更短的排查表。",
       url: "https://github.com/jing1312/svg-optimization-skill",
     },
     {
-      repo: "xiangzhang-course-pipeline", category: "flow", categoryLabel: "流程与自动化", lang: "JavaScript", status: "实验", accent: "mint",
-      desc: "课程平台录播资料的处理管线，关注签名直链、断点续传和失败重跑。",
-      why: "下载失败本身不可怕，可怕的是失败以后只能全部重来。",
-      done: "把下载与重试过程拆成可以观察的步骤。",
-      next: "继续验证不同网络和文件状态下的恢复行为。",
+      repo: "xiangzhang-course-pipeline", category: "flow", categoryLabel: "下载流程", lang: "JavaScript", status: "实验", accent: "mint",
+      desc: "处理课程平台录播资料，主要在意签名直链、断点续传和失败重跑。",
+      why: "下载失败不可怕，失败以后只能全部重来才麻烦。",
+      done: "把下载与重试拆成了可以单独检查的步骤。",
+      next: "继续测不同网络和文件状态下的恢复行为。",
       url: "https://github.com/jing1312/xiangzhang-course-pipeline",
     },
     {
-      repo: "IELTS_player_practice_jing", category: "study", categoryLabel: "学习工具", lang: "JavaScript", status: "可用", accent: "blue",
-      desc: "雅思听说练习播放器：逐句回放、变速和跟读，重点是让练习动作少绕一点。",
-      why: "练习时频繁找进度、切速度，会把注意力从句子本身带走。",
+      repo: "IELTS_player_practice_jing", category: "study", categoryLabel: "听说练习", lang: "JavaScript", status: "可用", accent: "blue",
+      desc: "雅思听说练习播放器，支持逐句回放、变速和跟读。",
+      why: "练习时总在找进度和切速度，会把注意力从句子本身带走。",
       done: "做了一个可以逐句操作的浏览器播放器。",
-      next: "继续补更细的练习记录。",
+      next: "补更简单的练习记录。",
       url: "https://github.com/jing1312/IELTS_player_practice_jing",
     },
   ],
 };
 
-export const workbench = {
-  kicker: "WORKBENCH",
-  title: "我怎么把事情做完",
-  lede: "我喜欢先把问题拆小，再决定要不要让模型参与。能复跑、能检查、能解释，通常比一次生成得很快更重要。",
-  panels: [
-    { title: "先确认问题到底是什么", tone: "pink", body: "先写输入、输出和不确定的地方。很多“想做一个页面”的念头，拆开以后其实只是需要一个筛选器、一个批处理脚本，或者一张更清楚的表。" },
-    { title: "让 AI 做提案，不替我下结论", tone: "blue", body: "模型适合帮我列可能性、改写结构、找漏项。涉及学习内容、实验记录和公开数据时，我会把假设、限制和需要人工核对的地方单独写出来。" },
-    { title: "给流程留一条可回看的痕迹", tone: "mint", body: "文件名、日志、中间结果和测试都不是装饰。下一次运行时，我想知道它做了什么、停在哪里、为什么停，而不是重新猜一遍。" },
-    { title: "最后再处理好看不好看", tone: "yellow", body: "视觉不是最后涂颜色。字有没有溢出、按钮能不能点到、手机上是不是还看得懂，这些都要在真实页面里检查。" },
+export const recent = {
+  title: "最近没有同时做十件事",
+  lede: "先把手上的几个坑填完。这里写的是当前状态，不是年度计划。",
+  items: [
+    { when: "这几天", title: "重写这个主页", status: "正在改", tone: "pink", body: "旧版太像模板，人物和文字还挤在一起。这次先把内容和动效都做扎实。" },
+    { when: "反复在改", title: "录播课批处理", status: "还在用", tone: "mint", body: "重点不是再加一个按钮，而是网络断掉以后能不能从原地继续。" },
+    { when: "复习时", title: "天然药化闪卡", status: "边用边记", tone: "yellow", body: "真正不会的结构比想象中固定，准备先把错题保存下来。" },
+    { when: "空下来再补", title: "论文图表案例", status: "收集中", tone: "lavender", body: "字号、单位、留白和导出尺寸都容易出错，我把遇到的案例慢慢记下来。" },
   ],
-  tools: ["Python", "JavaScript / TypeScript", "React", "Node.js", "HTML / CSS", "GitHub Actions", "PowerShell"],
+};
+
+export const tools = {
+  title: "电脑里常开的东西",
+  lede: "没有技能百分比。会不会用，还是看最后能不能把问题处理掉。",
+  groups: [
+    { title: "写代码", items: ["Python", "JavaScript / TypeScript", "Node.js", "React", "HTML / CSS"] },
+    { title: "跑流程", items: ["PowerShell", "GitHub Actions", "Git", "命令行"] },
+    { title: "整理内容", items: ["Markdown", "Jupyter", "浏览器 DevTools", "论文图表工具"] },
+  ],
+  habits: [
+    { title: "先跑一个最小版本", body: "把输入、输出和失败条件写清楚，通常比先搭一个大框架省时间。" },
+    { title: "模型给建议，我来核对", body: "生成内容可以当草稿。涉及数据、课程和公开说明时，还是要回到来源。" },
+    { title: "失败要留下线索", body: "日志、中间文件和测试不是仪式。下次出错时不用重新猜。" },
+    { title: "最后到真实页面里看", body: "文字会不会挤、按钮能不能点、手机上是不是还顺眼，都得打开浏览器检查。" },
+  ],
 };
 
 export const notes = {
-  kicker: "FIELD NOTES",
-  title: "正在生长的几件事",
-  lede: "这里放方向，不把计划写成结果。等做出能核验的东西，再把它移到项目柜里。",
+  title: "随手记，不写成宣言",
+  lede: "有些想法还没变成项目，先放在这里。",
   tabs: [
-    { id: "growing", label: "正在生长" },
-    { id: "checked", label: "已经确认" },
-    { id: "someday", label: "以后想试" },
+    { id: "current", label: "最近记的" },
+    { id: "confirmed", label: "已经吃过亏" },
+    { id: "later", label: "以后再说" },
   ],
   entries: {
-    growing: [
-      { title: "分子和癌症生物学的交叉阅读", date: "进行中", body: "我在慢慢补基础，也在练习如何区分“读到的结论”“自己的猜想”和“下一步要查的资料”。现在还不是研究结果，只是一个持续更新的阅读方向。" },
-      { title: "让学习工具更像一个小系统", date: "进行中", body: "闪卡、笔记和自测其实共享很多数据。想先把它们之间的连接理清，再决定要不要做更大的东西。" },
-      { title: "把失败写进流程", date: "进行中", body: "最近很在意失败模式：网络断了、输入不完整、模型答得很像真的但没有证据。工具要先把这些情况说清楚。" },
+    current: [
+      { title: "分子和癌症生物学的阅读笔记", date: "断断续续", body: "基础还在补。我会把论文里的结论、自己的猜测和下一步要查的东西分开写，免得过几天自己也看不懂。" },
+      { title: "闪卡、笔记和自测能不能共用一份数据", date: "想清楚一半", body: "它们重复的内容很多。先把数据怎么流动弄明白，再考虑做成更大的工具。" },
+      { title: "失败状态应该先设计", date: "最近常想", body: "网络断了、输入不完整、输出没有证据，这些都不是边角情况。" },
     ],
-    checked: [
-      { title: "可复跑比一次成功更有用", date: "已确认", body: "同一份输入再次运行，应该能得到可以解释的结果；如果做不到，至少要留下足够线索。" },
-      { title: "公开仓库也要照顾后来的人", date: "已确认", body: "README、安装步骤和限制说明不是附加项。以后回来看自己的代码，也会少一点猜谜。" },
+    confirmed: [
+      { title: "能接着跑，比一次跑通更有用", date: "已确认", body: "批处理迟早会断。保留中间结果和进度，比祈祷网络稳定靠谱。" },
+      { title: "README 是写给三个月后的自己", date: "已确认", body: "安装步骤和限制不写清楚，过一阵子连自己都会重新踩坑。" },
     ],
-    someday: [
-      { title: "做一套更轻的科研阅读卡片", date: "想试", body: "不是把论文压成一句漂亮的话，而是留下问题、证据、限制和待查的链接。" },
-      { title: "把小工具做成可以互相认识的房间", date: "想试", body: "先想想信息怎么流，再想界面长什么样。" },
+    later: [
+      { title: "更轻的论文阅读卡片", date: "没开工", body: "不做一句话摘要，想保留问题、证据、限制和原文位置。" },
+      { title: "让几个学习工具共用资料", date: "没开工", body: "先把现有工具用顺，再决定要不要连起来。" },
     ],
   },
 };
 
 export const about = {
-  kicker: "ABOUT ME",
-  title: "我还在路上",
-  lede: "药学在读，喜欢研究分子，也喜欢研究一段流程为什么总要重复十遍。",
-  paras: [
-    "白天面对课程、结构和题目，晚上写一些能让整理工作少绕一圈的小工具。兴趣在药学、Biomedical AI 和可复用的软件之间来回移动。",
-    "我不太想把自己包装成已经完成的人。仓库里有做完的，也有实验中的；有些只是解决了自己的一个小问题，能留下来继续用，就已经很值得。",
+  title: "关于我",
+  lede: "南昌大学药学大三。会背结构，也会为了少点几次鼠标写半天脚本。",
+  paragraphs: [
+    "现在最常碰到的是课程、药学资料和一些自动化需求。仓库里有做完的，也有实验中的；不好用的东西我会继续改，没做完的就直接写没做完。",
+    "Biomedical AI 我也会看，不过现在谈成果还早。先把药学和代码的基础补齐；写出来的小项目，至少要真的跑得动，隔几个月自己还能看懂。",
   ],
-  principles: ["把事实和猜想分开", "先做能重跑的版本", "承认失败模式", "保持可以继续修改"],
-  contact: "如果你刚好也在做学习工具、科研图表或自动化，欢迎从 GitHub 找我。",
+  contact: "想聊某个仓库，直接去 GitHub 提 Issue 最方便。",
 };
 
 export const tones = {
-  home: "paper",
-  garden: "blue",
-  projects: "amber",
-  workbench: "mint",
-  notes: "lavender",
-  about: "magenta",
+  home: "pink",
+  projects: "lavender",
+  recent: "mint",
+  tools: "butter",
+  notes: "blue",
+  about: "rose",
 };

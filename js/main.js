@@ -1,7 +1,7 @@
 /* main.js — 页面入口与 Three.js 人物舞台。 */
 
-import { renderAll } from "./ui/render.js";
-import { createCharacterStage } from "./gl/character-stage.js";
+import { renderAll } from "./ui/render.js?v=kitty-20260810-2";
+import { createCharacterStage } from "./gl/character-stage.js?v=kitty-20260810-2";
 import { prefersReducedMotion } from "./util/anim.js";
 
 renderAll();
