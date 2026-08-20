@@ -1,9 +1,41 @@
-a:focus-visible, button:focus-visible, summary:focus-visible {
-  outline: 3px solid rgba(90, 159, 214, .58);
-  outline-offset: 3px;
-}
-button { font: inherit; -webkit-tap-highlight-color: transparent; }
-button:disabled { cursor: not-allowed; opacity: .56; }
-.noscript { max-width: 42rem; margin: 0 auto; padding: 12vh 1.4rem; }
-.noscript h1 { font-size: 2.8rem; }
-.noscript p { margin-top: 1rem; line-height: 1.7; }
+/* ui.css — 补充 UI 样式 */
+
+/* section tone accents */
+.section--projects{background:transparent;}
+.section--recent{background:transparent;}
+.section--tools{background:transparent;}
+.section--notes{background:transparent;}
+.section--about{background:transparent;}
+
+/* project card accent colors */
+.project-card--pink{border-top:3px solid var(--pink);}
+.project-card--mint{border-top:3px solid var(--mint);}
+.project-card--yellow{border-top:3px solid #f0d870;}
+.project-card--lavender{border-top:3px solid var(--lavender);}
+.project-card--blue{border-top:3px solid #80b8e0;}
+.project-card--orange{border-top:3px solid #f0a860;}
+
+/* recent item tones */
+.recent-item--pink{border-left:3px solid var(--pink);}
+.recent-item--mint{border-left:3px solid var(--mint);}
+.recent-item--yellow{border-left:3px solid #f0d870;}
+.recent-item--lavender{border-left:3px solid var(--lavender);}
+
+/* tool shelf accents */
+.tool-shelf--1 h3{color:var(--pink-edge);}
+.tool-shelf--2 h3{color:#5a8c5e;}
+.tool-shelf--3 h3{color:#7b69a6;}
+
+/* footer */
+.site-footer{border-top:1px solid rgba(255,255,255,0.4);margin-top:40px;}
+.site-footer .text-link{font-size:0.78rem;}
+
+/* noscript fallback */
+.noscript { max-width: 600px; margin: 80px auto; padding: 40px; text-align: center; }
+.noscript h1 { font-size: 2rem; }
+.noscript p { margin: 16px 0; color: var(--ink-soft); }
+.noscript a { color: var(--pink); }
+
+/* scene-ready 过渡 */
+.is-booting .scroll-content { opacity: 0; }
+.scroll-content { opacity: 1; transition: opacity 0.8s var(--ease-out); }

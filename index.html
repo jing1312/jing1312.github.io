@@ -11,18 +11,22 @@
 <meta property="og:title" content="jingjing / 药学与小工具">
 <meta property="og:description" content="公开项目、最近在忙的事，还有一些过程笔记。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%239bd6f5'/%3E%3Cpath d='M8 17c4-7 12-7 16 0-4 7-12 7-16 0Z' fill='%23fff'/%3E%3Ccircle cx='16' cy='17' r='3' fill='%23f28eae'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/tokens.css?v=kitty-20260810">
+<link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/type.css">
-<link rel="stylesheet" href="css/layout.css?v=kitty-20260810">
-<link rel="stylesheet" href="css/ui.css?v=kitty-20260810">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/ui.css">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js" } }
 </script>
 </head>
-<body class="is-booting" data-tone="pink">
-<a class="skip-link" href="#view-root">跳到主要内容</a>
-<main id="main"><div id="app"></div></main>
+<body class="is-booting">
+<a class="skip-link" href="#hero">跳到主要内容</a>
+<div class="orb orb-1" aria-hidden="true"></div>
+<div class="orb orb-2" aria-hidden="true"></div>
+<div class="orb orb-3" aria-hidden="true"></div>
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<div id="app"></div>
 <noscript>
   <div class="noscript">
     <h1>jingjing / 药学与小工具</h1>
@@ -30,6 +34,12 @@
     <p><a href="https://github.com/jing1312">去 GitHub 看全部公开仓库</a></p>
   </div>
 </noscript>
-<script type="module" src="js/main.js?v=kitty-20260810-2"></script>
+<script>
+window.addEventListener("error", function(e) {
+  console.error("[global]", e.message, e.filename + ":" + e.lineno);
+  document.body.classList.remove("is-booting");
+});
+</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
